@@ -12,12 +12,11 @@
     "prisma:clean": "tsx prisma/clean-db.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.6.0"
-  },
-  "devDependencies": {
+    "@prisma/client": "^6.6.0",
     "prisma": "^6.6.0",
     "tsx": "^4.19.2"
   },
+  "devDependencies": {},
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   }
