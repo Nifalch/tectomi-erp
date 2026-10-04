@@ -1,0 +1,25 @@
+{
+  "name": "@nuro7/db",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "prisma:deploy": "prisma db push --schema prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:team": "tsx prisma/upsert-team.ts",
+    "prisma:clean": "tsx prisma/clean-db.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.6.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.6.0",
+    "tsx": "^4.19.2"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}
+

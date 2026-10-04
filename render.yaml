@@ -1,0 +1,65 @@
+# Render Blueprint — Full-Stack Deployment for Tectomi ERP
+# Deploy at: https://dashboard.render.com/blueprints
+
+databases:
+  # ── 1. Managed PostgreSQL Database (Free Tier) ──
+  - name: tectomi-db
+    databaseName: tectomi
+    user: tectomi
+    plan: free
+    region: singapore
+
+services:
+  # ── 2. NestJS Backend API (Free Web Service) ──
+  - type: web
+    name: tectomi-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install && npm run db:generate && npm run db:deploy && npm run db:team && npm run build --workspace @nuro7/api
+    startCommand: npm run start --workspace @nuro7/api
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tectomi-db
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 7d
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: APP_URL
+        value: "*"
+
+  # ── 3. Next.js Web Frontend (Free Web Service) ──
+  - type: web
+    name: tectomi-web
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install && npm run build --workspace @nuro7/web
+    startCommand: npm run start --workspace @nuro7/web
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: NEXT_PUBLIC_API_URL
+        # Set to your Render API URL (e.g. https://tectomi-api.onrender.com/api/v1)
+        sync: false

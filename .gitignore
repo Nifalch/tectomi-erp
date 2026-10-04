@@ -1,0 +1,18 @@
+.next
+dist
+node_modules
+.turbo
+.env
+.env.local
+.DS_Store
+coverage
+*.log
+packages/db/generated
+# Compiled CJS copies in the contracts package — main/types both point at
+# the .ts sources, so any .js companions are unused build artifacts and
+# a drift risk if a future consumer picks them up by accident.
+packages/contracts/src/*.js
+tsconfig.tsbuildinfo
+.superpowers/brainstorm
+.claude/
+

@@ -1,0 +1,3406 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleCode {
+  SUPER_ADMIN
+  ADMIN
+  PROJECT_MANAGER
+  HR_MANAGER
+  FINANCE_MANAGER
+  EMPLOYEE
+  CLIENT
+}
+
+enum PermissionAction {
+  READ
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  EXPORT
+  SEND
+  INVITE
+  ASSIGN
+  COMMENT
+  UPLOAD
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+  BLOCKED
+}
+
+enum TaskStatusCategory {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ClientPriority {
+  LOW
+  MEDIUM
+  HIGH
+  VIP
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  CASUAL
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// How a LeaveRequest was originated. REQUESTED is the normal user-initiated
+// flow; the AUTO_* variants are created by the attendance engine when a
+// late check-in or half-day-cutoff arrival triggers an automatic deduction.
+enum LeaveSource {
+  REQUESTED
+  AUTO_HALF_DAY
+  AUTO_LATE_PENALTY
+}
+
+// Status of an Attendance row computed at clock-in time. PRESENT means the
+// employee arrived within the grace window; LATE means past grace but
+// before the half-day cutoff; HALF_DAY means at-or-after the half-day
+// cutoff (auto-deducts 0.5 leave); ABSENT is set by a daily sweep when no
+// check-in exists on a working day; HOLIDAY is a non-working day.
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  HALF_DAY
+  ABSENT
+  ON_LEAVE
+  HOLIDAY
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum TransactionType {
+  EXPENSE
+  REVENUE
+  TRANSFER
+  PAYROLL
+  REFUND
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_MENTIONED
+  TASK_WATCHER_ACTIVITY
+  TASK_DUE_SOON
+  TASK_COMMENT
+  SPRINT_STARTED
+  PROJECT_ADDED
+  PROJECT_MEMBER_ADDED
+  PROJECT_DEADLINE_SOON
+  CHAT_MENTIONED
+  LEAVE_APPROVED
+  LEAVE_REJECTED
+  HOLIDAY_UPCOMING
+  ANNOUNCEMENT_POSTED
+  GENERIC
+}
+
+enum DocumentEntityType {
+  PROJECT
+  CLIENT
+  EMPLOYEE
+  FINANCE
+  GENERAL
+}
+
+enum DocumentStorage {
+  LOCAL
+  S3
+}
+
+model User {
+  id                           String                  @id @default(cuid())
+  email                        String                  @unique
+  passwordHash                 String
+  firstName                    String
+  lastName                     String
+  avatarUrl                    String?
+  phone                        String?
+  status                       UserStatus              @default(INVITED)
+  emailVerifiedAt              DateTime?
+  lastLoginAt                  DateTime?
+  createdAt                    DateTime                @default(now())
+  updatedAt                    DateTime                @updatedAt
+  employeeProfile              EmployeeProfile?
+  directReports                EmployeeProfile[]       @relation("EmployeeManager")
+  hrNotesAuthored              HrNote[]                @relation("HrNoteAuthor")
+  employmentEventsCreated      EmploymentStatusEvent[] @relation("EmploymentEventCreator")
+  founderLedgerEntriesCreated  FounderLedgerEntry[]    @relation("FounderLedgerCreator")
+  equityGrantsCreated          EquityGrant[]           @relation("EquityGrantCreator")
+  valuationsCreated            CompanyValuation[]      @relation("ValuationCreator")
+  sessions                     Session[]
+  refreshTokens                RefreshToken[]
+  passwordResetTokens          PasswordResetToken[]
+  verificationTokens           VerificationToken[]
+  roles                        UserRole[]
+  authoredProjects             Project[]               @relation("ProjectManager")
+  projectMemberships           ProjectMember[]
+  assignedTasks                Task[]                  @relation("AssignedTasks")
+  taskComments                 TaskComment[]
+  taskAttachments              TaskAttachment[]
+  timeEntries                  TimeEntry[]
+  attendanceLogs               Attendance[]
+  leaveBalances                LeaveBalance[]
+  leaveRequests                LeaveRequest[]          @relation("LeaveRequester")
+  leaveApprovals               LeaveRequest[]          @relation("LeaveApprover")
+  clientContacts               Client[]                @relation("ClientPortalUser")
+  accountManagedClients        Client[]                @relation("ClientAccountManager")
+  invoicesCreated              Invoice[]               @relation("InvoiceCreatedBy")
+  proposalsCreated             Proposal[]
+  resourceAllocations          ResourceAllocation[]
+  documentsUploaded            Document[]
+  notifications                Notification[]
+  expensesCreated              Expense[]               @relation("ExpenseCreatedBy")
+  revenuesCreated              Revenue[]               @relation("RevenueCreatedBy")
+  transactionsCreated          Transaction[]           @relation("TransactionCreatedBy")
+  createdReports               ReportExport[]
+  activityLogs                 ActivityLog[]
+  assignedLeads                Lead[]                  @relation("LeadAssignee")
+  knowledgeArticles            KnowledgeArticle[]      @relation("ArticleAuthor")
+  goals                        Goal[]                  @relation("GoalAssignee")
+  organizedEvents              CalendarEvent[]         @relation("EventOrganizer")
+  communications               Communication[]         @relation("CommunicationCreator")
+  emailTemplates               EmailTemplate[]         @relation("TemplateCreator")
+  wikiPages                    ProjectWikiPage[]       @relation("WikiAuthor")
+  dealsOwned                   Deal[]                  @relation("DealOwner")
+  activitiesCreated            Activity[]              @relation("ActivityCreator")
+  activitiesAssigned           Activity[]              @relation("ActivityAssignee")
+  estimatesCreated             Estimate[]              @relation("EstimateCreator")
+  billsCreated                 Bill[]                  @relation("BillCreator")
+  paymentsCreated              Payment[]               @relation("PaymentCreator")
+  recurringExpensesCreated     RecurringExpense[]      @relation("RecurringExpenseCreator")
+  projectClientMessages        ProjectClientMessage[]  @relation("UserProjectMessages")
+  creditNotesCreated           CreditNote[]            @relation("CreditNoteCreator")
+  journalsCreated              JournalEntry[]          @relation("JournalCreator")
+  recurringInvoicesCreated     RecurringInvoice[]      @relation("RecurringInvoiceCreator")
+  payrollRuns                  PayrollRun[]            @relation("PayrollProcessor")
+  reviewsAsEmployee            PerformanceReview[]     @relation("ReviewEmployee")
+  reviewsAsReviewer            PerformanceReview[]     @relation("ReviewReviewer")
+  feedback360Given             Review360Feedback[]     @relation("Feedback360Reviewer")
+  shiftSchedules               ShiftSchedule[]         @relation("ShiftUser")
+  assetsAssigned               Asset[]                 @relation("AssetAssignee")
+  announcements                Announcement[]          @relation("AnnouncementPublisher")
+  timesheets                   TimesheetSubmission[]   @relation("TimesheetUser")
+  timesheetsApproved           TimesheetSubmission[]   @relation("TimesheetApprover")
+  savedViews                   SavedView[]             @relation("SavedViewsUser")
+  recurringTasksAssigned       RecurringTaskTemplate[] @relation("RecurringTaskAssignee")
+  recurringTasksCreated        RecurringTaskTemplate[] @relation("RecurringTaskCreator")
+  timeEntriesApproved          TimeEntry[]             @relation("TimeEntryApprover")
+  taskWatchers                 TaskWatcher[]           @relation("TaskWatcher")
+  retrospectivesCreated        SprintRetrospective[]   @relation("RetroCreator")
+  channelsCreated              Channel[]               @relation("ChannelsCreated")
+  channelMembers               ChannelMember[]         @relation("ChannelMembers")
+  chatMessages                 ChatMessage[]           @relation("ChatMessagesAuthored")
+  chatReactions                ChatReaction[]          @relation("ChatReactions")
+  projectExpensesCreated       ProjectExpense[]        @relation("ProjectExpensesCreated")
+  clientRequestMessages        ClientRequestMessage[]
+  credentialsOwned             Credential[]            @relation("CredentialOwner")
+  credentialAccesses           CredentialAccess[]      @relation("CredentialAccessUser")
+  credentialAccessesGranted    CredentialAccess[]      @relation("CredentialAccessGranter")
+  credentialAuditEvents        CredentialAudit[]       @relation("CredentialAuditor")
+  credentialFoldersCreated     CredentialFolder[]      @relation("CredentialFolderCreator")
+  marketingIdeasOwned          MarketingIdea[]         @relation("MarketingIdeaOwner")
+  marketingTasksAssigned       MarketingIdeaTask[]     @relation("MarketingTaskAssignee")
+  socialPostsOwned             SocialPost[]            @relation("SocialPostOwner")
+  productIdeasOwned            ProductIdea[]           @relation("ProductIdeaOwner")
+  productTasksAssigned         ProductIdeaTask[]       @relation("ProductTaskAssignee")
+  teamToolsAdded               TeamTool[]              @relation("TeamToolAddedBy")
+  productIdeaVotes             ProductIdeaVote[]       @relation("ProductIdeaVoter")
+  moduleAccessOverrides        UserModuleAccess[]      @relation("UserModuleAccessUser")
+  moduleAccessOverridesGranted UserModuleAccess[]      @relation("UserModuleAccessGranter")
+  // Enroll ID on the ESSL/ZKTeco biometric device (the 1-9 digit number
+  // shown next to the fingerprint/face template on the device). Null
+  // until HR maps the user to a device enrollment. Unique so two users
+  // can't claim the same enroll ID.
+  biometricEnrollId            String?                 @unique
+  biometricLogs                BiometricLog[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress  String?
+  userAgent  String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model VerificationToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  code        RoleCode         @unique
+  name        String
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  resource    String
+  action      PermissionAction
+  name        String
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  roles       RolePermission[]
+
+  @@unique([resource, action])
+}
+
+model UserRole {
+  id         String   @id @default(cuid())
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model Client {
+  id                String             @id @default(cuid())
+  companyName       String
+  contactPerson     String?
+  email             String?            @unique
+  phone             String?
+  address           String?
+  website           String?
+  notes             String?
+  industry          String?
+  city              String?
+  country           String?
+  priority          ClientPriority     @default(MEDIUM)
+  status            String             @default("ACTIVE")
+  accountManagerId  String?
+  accountManager    User?              @relation("ClientAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
+  tags              String[]           @default([])
+  nextFollowUpAt    DateTime?
+  referralSource    String?
+  acquiredAt        DateTime?          @db.Date
+  portalEnabled     Boolean            @default(false)
+  portalUserId      String?
+  customFields      Json?
+  portalUser        User?              @relation("ClientPortalUser", fields: [portalUserId], references: [id], onDelete: SetNull)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  projects          Project[]
+  contracts         Contract[]
+  invoices          Invoice[]
+  proposals         Proposal[]
+  documents         Document[]
+  leadConversion    Lead?              @relation("LeadConversion")
+  contacts          Contact[]
+  deals             Deal[]
+  activities        Activity[]
+  estimates         Estimate[]
+  payments          Payment[]
+  creditNotes       CreditNote[]
+  recurringInvoices RecurringInvoice[]
+  clientContacts    ClientContact[]
+  clientRequests    ClientRequest[]
+}
+
+model Contract {
+  id        String    @id @default(cuid())
+  clientId  String
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title     String
+  startDate DateTime
+  endDate   DateTime?
+  value     Decimal   @db.Decimal(12, 2)
+  status    String
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Project {
+  id                  String                    @id @default(cuid())
+  name                String
+  clientId            String
+  client              Client                    @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  description         String?
+  startDate           DateTime
+  endDate             DateTime?
+  budget              Decimal                   @db.Decimal(12, 2)
+  // Per-project hourly billing rate. Falls back to
+  // OrganizationSettings.defaultHourlyRate when null. Used by the
+  // proposal generator + AI plan budget calculation so each engagement
+  // can carry its own contracted rate without overwriting the org-wide
+  // default for other projects.
+  hourlyRate          Decimal?                  @db.Decimal(10, 2)
+  status              ProjectStatus             @default(PLANNING)
+  managerId           String
+  manager             User                      @relation("ProjectManager", fields: [managerId], references: [id], onDelete: Restrict)
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  milestones          Milestone[]
+  members             ProjectMember[]
+  tasks               Task[]
+  timeEntries         TimeEntry[]
+  invoices            Invoice[]
+  proposals           Proposal[]
+  resourceAllocations ResourceAllocation[]
+  documents           Document[]
+  sprints             Sprint[]
+  labels              Label[]
+  wikiPages           ProjectWikiPage[]
+  estimates           Estimate[]
+  recurringInvoices   RecurringInvoice[]
+  recurringTasks      RecurringTaskTemplate[]   @relation("RecurringTaskProject")
+  customStatuses      ProjectTaskStatus[]       @relation("ProjectCustomStatuses")
+  channels            Channel[]                 @relation("ProjectChannel")
+  expenses            ProjectExpense[]          @relation("ProjectExpenses")
+  bills               Bill[]                    @relation("BillProject")
+  paymentMilestones   ProjectPaymentMilestone[]
+  clientRequests      ClientRequest[]
+  clientMessages      ProjectClientMessage[]    @relation("ProjectMessages")
+}
+
+/// Per-project chat between the client (ClientContact) and staff
+/// (User). Either fromContact or fromUser is set, never both. Surfaces
+/// on the portal as "Chat" tab and on the staff side as a project
+/// thread, so clients can DM the team without leaving the portal.
+model ProjectClientMessage {
+  id            String         @id @default(cuid())
+  projectId     String
+  project       Project        @relation("ProjectMessages", fields: [projectId], references: [id], onDelete: Cascade)
+  content       String
+  fromContactId String?
+  fromContact   ClientContact? @relation("ContactProjectMessages", fields: [fromContactId], references: [id], onDelete: SetNull)
+  fromUserId    String?
+  fromUser      User?          @relation("UserProjectMessages", fields: [fromUserId], references: [id], onDelete: SetNull)
+  readAt        DateTime?
+  createdAt     DateTime       @default(now())
+
+  @@index([projectId, createdAt])
+}
+
+enum PaymentMilestoneStatus {
+  PENDING // not yet billed
+  INVOICED // invoice generated but not paid
+  PAID // invoice paid
+  SKIPPED // PM marked as not applicable
+}
+
+model ProjectPaymentMilestone {
+  id         String                 @id @default(cuid())
+  projectId  String
+  project    Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  label      String // "Advance", "Mid-project", "Final" — editable
+  percentage Decimal                @db.Decimal(6, 2) // 50.00, 30.00, 20.00 (0 for extras)
+  // Extras / change orders carry a direct rupee amount instead of a %
+  // of the project budget. They sit ALONGSIDE the regular schedule and
+  // do NOT count toward the 100% cap. `amount` is null for regular
+  // (percentage-based) milestones.
+  isExtra    Boolean                @default(false)
+  amount     Decimal?               @db.Decimal(12, 2)
+  sortOrder  Int                    @default(0)
+  status     PaymentMilestoneStatus @default(PENDING)
+  invoiceId  String?                @unique
+  invoice    Invoice?               @relation("MilestoneInvoice", fields: [invoiceId], references: [id], onDelete: SetNull)
+  dueDate    DateTime?              @db.Date
+  notes      String?
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model ProjectMember {
+  id         String   @id @default(cuid())
+  projectId  String
+  userId     String
+  roleLabel  String
+  allocation Int      @default(0)
+  joinedAt   DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  projectId   String
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      MilestoneStatus @default(NOT_STARTED)
+  tasks       Task[]          @relation("MilestoneTasks")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Task {
+  id              String                 @id @default(cuid())
+  projectId       String
+  project         Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  assignedToId    String?
+  assignedTo      User?                  @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
+  status          TaskStatus             @default(TODO)
+  isClientVisible Boolean                @default(false)
+  customStatusId  String?
+  customStatus    ProjectTaskStatus?     @relation("TaskCustomStatus", fields: [customStatusId], references: [id], onDelete: SetNull)
+  recurringTaskId String?
+  recurringTask   RecurringTaskTemplate? @relation("RecurringTaskGenerated", fields: [recurringTaskId], references: [id], onDelete: SetNull)
+  priority        Priority               @default(MEDIUM)
+  startDate       DateTime?
+  dueDate         DateTime?
+  estimatedHrs    Decimal?               @db.Decimal(8, 2)
+  parentId        String?
+  parent          Task?                  @relation("Subtasks", fields: [parentId], references: [id], onDelete: SetNull)
+  subtasks        Task[]                 @relation("Subtasks")
+  sprintId        String?
+  sprint          Sprint?                @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  milestoneId     String?
+  milestone       Milestone?             @relation("MilestoneTasks", fields: [milestoneId], references: [id], onDelete: SetNull)
+  storyPoints     Int?
+  progressPercent Int                    @default(0)
+  sortOrder       Int                    @default(0)
+  reminderSentAt  DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  comments        TaskComment[]
+  attachments     TaskAttachment[]
+  timeEntries     TimeEntry[]
+  labels          TaskLabel[]
+  watchers        TaskWatcher[]
+  blockedBy       TaskDependency[]       @relation("BlockedTask")
+  blocking        TaskDependency[]       @relation("BlockingTask")
+  clientRequests  ClientRequest[]
+}
+
+// ── Sprints / Iterations ──
+
+enum SprintStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+}
+
+model Sprint {
+  id                String                   @id @default(cuid())
+  projectId         String
+  project           Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name              String
+  goal              String?
+  startDate         DateTime                 @db.Date
+  endDate           DateTime                 @db.Date
+  status            SprintStatus             @default(PLANNED)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  tasks             Task[]
+  burndownSnapshots SprintBurndownSnapshot[] @relation("SprintBurndown")
+  retrospective     SprintRetrospective?     @relation("SprintRetro")
+}
+
+// ── Labels / Tags ──
+
+model Label {
+  id        String      @id @default(cuid())
+  name      String
+  color     String      @default("#64748b")
+  projectId String?
+  project   Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+  tasks     TaskLabel[]
+
+  @@unique([name, projectId])
+}
+
+model TaskLabel {
+  taskId  String
+  labelId String
+  task    Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label   Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+}
+
+// ── Task Dependencies ──
+
+model TaskDependency {
+  id         String   @id @default(cuid())
+  blockedId  String
+  blockingId String
+  blocked    Task     @relation("BlockedTask", fields: [blockedId], references: [id], onDelete: Cascade)
+  blocking   Task     @relation("BlockingTask", fields: [blockingId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([blockedId, blockingId])
+}
+
+// ── Project Wiki (Notion-like docs) ──
+
+model ProjectWikiPage {
+  id        String            @id @default(cuid())
+  projectId String
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  parentId  String?
+  parent    ProjectWikiPage?  @relation("WikiNesting", fields: [parentId], references: [id], onDelete: SetNull)
+  children  ProjectWikiPage[] @relation("WikiNesting")
+  authorId  String
+  author    User              @relation("WikiAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TaskAttachment {
+  id           String   @id @default(cuid())
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  fileUrl      String
+  fileName     String
+  createdAt    DateTime @default(now())
+}
+
+model TimeEntry {
+  id              String                  @id @default(cuid())
+  userId          String
+  projectId       String
+  taskId          String?
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project         Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task            Task?                   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  startTime       DateTime
+  endTime         DateTime?
+  duration        Int?
+  notes           String?
+  billable        Boolean                 @default(true)
+  // Approval workflow — optional per-entry approval for billable time
+  approvalStatus  TimeEntryApprovalStatus @default(PENDING)
+  approvedById    String?
+  approvedBy      User?                   @relation("TimeEntryApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime                @default(now())
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([taskId])
+  @@index([startTime])
+}
+
+model Attendance {
+  id          String           @id @default(cuid())
+  userId      String
+  date        DateTime         @db.Date
+  checkIn     DateTime?
+  checkOut    DateTime?
+  totalHours  Decimal?         @db.Decimal(6, 2)
+  status      AttendanceStatus @default(PRESENT)
+  lateMinutes Int              @default(0)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId, date])
+  @@index([status])
+}
+
+model LeaveBalance {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveType LeaveType
+  totalDays Decimal   @db.Decimal(5, 2)
+  usedDays  Decimal   @default(0) @db.Decimal(5, 2)
+  remaining Decimal   @db.Decimal(5, 2)
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, leaveType])
+}
+
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation("LeaveRequester", fields: [userId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType
+  startDate    DateTime    @db.Date
+  endDate      DateTime    @db.Date
+  status       LeaveStatus @default(PENDING)
+  reason       String?
+  approvedById String?
+  approvedBy   User?       @relation("LeaveApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  // Half-day support: when true the request consumes 0.5 day per covered
+  // date. `days` stores the resolved total (1.0 for full day, 0.5 half).
+  isHalfDay    Boolean     @default(false)
+  days         Decimal     @default(1) @db.Decimal(5, 2)
+  // How this request was created — user-initiated vs auto-generated by
+  // the attendance engine (half-day cutoff arrival, or 3-late penalty).
+  source       LeaveSource @default(REQUESTED)
+  // Resolved at create-time: whether this leave consumes one of the
+  // employee's monthly paid leaves (true) or is logged as unpaid because
+  // the monthly cap was already exhausted (false).
+  isPaid       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([userId, startDate])
+  @@index([status])
+}
+
+// Singleton attendance policy. The service reads the first row (or falls
+// back to coded defaults that mirror the @default() values below). Only
+// SUPER_ADMIN / HR_MANAGER mutate this; everyone reads.
+model AttendancePolicy {
+  id                  String   @id @default(cuid())
+  // Office start/end times. Hour columns kept for backwards compatibility
+  // with code paths that don't yet read minutes — new code always pairs the
+  // Hour with the Minute column. Defaults preserve the prior 10:00 → 18:00.
+  officeStartHour     Int      @default(10) // 24-h, e.g. 10 = 10:00
+  officeStartMinute   Int      @default(0) // 0..59
+  officeEndHour       Int      @default(18) // 24-h, e.g. 18 = 18:00
+  officeEndMinute     Int      @default(0) // 0..59
+  graceMinutes        Int      @default(10) // minutes after officeStart that still count as PRESENT
+  halfDayCutoffHour   Int      @default(12) // check-in at/after this hour auto-marks HALF_DAY
+  halfDayCutoffMinute Int      @default(0)
+  // Hours each employee is expected to work per day (default 8.0). Drives
+  // the "expected check-out" hint and rolls into time-tracking targets.
+  // Decimal so 7.5 or 8.5-hour days are supported.
+  requiredDailyHours  Decimal  @default(8) @db.Decimal(4, 2)
+  lateStreakThreshold Int      @default(3) // every Nth LATE in a month deducts one paid leave
+  monthlyPaidLeaveCap Int      @default(2) // free paid leaves per calendar month before unpaid kicks in
+  // Working days bitmask: bit 0 = Sun, bit 1 = Mon, ..., bit 6 = Sat.
+  // Default 126 = bits 1..6 set = Mon-Sat. Stored as a single int so we
+  // don't need Postgres array support.
+  workingDaysMask     Int      @default(126)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ── ESSL / ZKTeco biometric devices (push protocol) ──────────────────
+// One row per physical device on the office network. Devices auto-
+// register the first time they call /iclock/cdata with their SN, but
+// their punches are quarantined (BiometricLog.processed=false) until
+// an admin flips `approved=true`. This prevents a rogue device from
+// silently injecting attendance for arbitrary employees.
+model BiometricDevice {
+  id           String          @id @default(cuid())
+  // Device serial number as reported in the SN query param. Treated as
+  // the device identity — used for routing all push-protocol calls.
+  serialNumber String          @unique
+  name         String? // friendly label set by HR e.g. "Reception"
+  approved     Boolean         @default(false)
+  // Last time the device successfully hit any /iclock endpoint. Used
+  // for the "device offline" warning in the admin UI.
+  lastSeenAt   DateTime?
+  firstSeenAt  DateTime        @default(now())
+  // Optional metadata reported in the device's OPTIONS handshake.
+  deviceModel  String?
+  firmware     String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  logs         BiometricLog[]
+}
+
+// Raw biometric punches as received from the device. Append-only audit
+// trail: every punch lands here, processed or not, so HR can replay
+// when an enroll-ID mapping is added retroactively. `userId` is null
+// until the device user ID is mapped to a User.biometricEnrollId.
+model BiometricLog {
+  id           String          @id @default(cuid())
+  deviceId     String
+  device       BiometricDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  // The enroll ID as it appears on the device. Stored as a string to
+  // preserve leading zeros and accommodate alphanumeric IDs on newer
+  // ZK firmware. Mapped to User.biometricEnrollId.
+  deviceUserId String
+  userId       String?
+  user         User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  punchAt      DateTime
+  // ZK ATTLOG status column. 0=in, 1=out, 2=break-out, 3=break-in,
+  // 4=overtime-in, 5=overtime-out. Most ESSL devices send 0 for every
+  // punch (the server decides in/out by order); we keep it for audit.
+  punchType    Int             @default(0)
+  // ZK verify mode. 1=fingerprint, 4=card, 11=face, 15=palm, etc.
+  verifyMode   Int             @default(0)
+  // The exact text line received from the device. Forensics for when
+  // an attendance entry looks wrong months later.
+  raw          String
+  // false until the punch has been synced to the Attendance table.
+  // Stays false for: unapproved devices, unmapped enroll IDs, holidays,
+  // and non-working days. HR can manually reprocess after mapping.
+  processed    Boolean         @default(false)
+  appliedAt    DateTime?
+  createdAt    DateTime        @default(now())
+
+  // Dedupe key — the device retries pushes on flaky networks, so the
+  // same (device, enroll-id, timestamp) triple may arrive twice.
+  @@unique([deviceId, deviceUserId, punchAt])
+  @@index([userId, punchAt])
+  @@index([processed])
+  @@index([deviceId, createdAt])
+}
+
+model EmployeeProfile {
+  id                 String                  @id @default(cuid())
+  userId             String                  @unique
+  user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department         String
+  designation        String
+  salary             Decimal                 @db.Decimal(12, 2)
+  hourlyRate         Decimal?                @db.Decimal(10, 2)
+  joinDate           DateTime                @db.Date
+  employmentType     EmploymentType
+  managerName        String? // legacy free-text fallback
+  managerId          String?
+  manager            User?                   @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  emergencyContact   String?
+  performanceScore   Decimal?                @db.Decimal(4, 2)
+  // Co-founder marker — gates deferred-compensation features (the founder
+  // dashboard card, the inline "Drawn" editor on their pay slips, the
+  // Founder badge on the profile header). Regular employees never opt
+  // into deferred draw.
+  isFounder          Boolean                 @default(false)
+  weeklyCapacityHrs  Decimal                 @default(40) @db.Decimal(5, 2)
+  // Per-employee shift override (24-h clock). When null, attendance
+  // falls back to the org-wide AttendancePolicy.officeStartHour /
+  // officeEndHour. Lets HR support employees on different schedules
+  // (e.g. 9-5 vs the default 10-6) without breaking the org policy.
+  // Minute columns are 0..59 and pair with the Hour column to support
+  // half-hour shifts like 09:30. Default to 0 so an existing row with
+  // shiftStartHour=9 reads back as 09:00 without manual fix-ups.
+  shiftStartHour     Int?
+  shiftStartMinute   Int?                    @default(0)
+  shiftEndHour       Int?
+  shiftEndMinute     Int?                    @default(0)
+  // Per-employee daily hours override. NULL falls back to the org-wide
+  // AttendancePolicy.requiredDailyHours. Lets HR keep some employees on
+  // 7-hour days (e.g. interns) without changing the org default.
+  requiredDailyHours Decimal?                @db.Decimal(4, 2)
+  terminatedAt       DateTime?               @db.Date
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  documents          EmployeeDocument[]
+  promotions         PromotionHistory[]
+  salaryStructure    SalaryStructure?
+  paySlips           PaySlip[]
+  hrNotes            HrNote[]
+  statusEvents       EmploymentStatusEvent[]
+  ledgerEntries      FounderLedgerEntry[]
+  equityGrants       EquityGrant[]
+}
+
+model EmployeeDocument {
+  id         String          @id @default(cuid())
+  employeeId String
+  employee   EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title      String
+  fileUrl    String
+  createdAt  DateTime        @default(now())
+}
+
+model PromotionHistory {
+  id            String          @id @default(cuid())
+  employeeId    String
+  employee      EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  previousTitle String
+  newTitle      String
+  effectiveDate DateTime        @db.Date
+  notes         String?
+  createdAt     DateTime        @default(now())
+}
+
+model Expense {
+  id             String         @id @default(cuid())
+  title          String
+  category       String
+  amount         Decimal        @db.Decimal(12, 2)
+  spentAt        DateTime       @db.Date
+  notes          String?
+  approvalStatus ApprovalStatus @default(PENDING_APPROVAL)
+  approvedById   String?
+  createdById    String
+  createdBy      User           @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  transaction    Transaction?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model Revenue {
+  id          String       @id @default(cuid())
+  title       String
+  source      String
+  amount      Decimal      @db.Decimal(12, 2)
+  receivedAt  DateTime     @db.Date
+  notes       String?
+  createdById String
+  createdBy   User         @relation("RevenueCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  transaction Transaction?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  type        TransactionType
+  amount      Decimal         @db.Decimal(12, 2)
+  reference   String?
+  expenseId   String?         @unique
+  revenueId   String?         @unique
+  expense     Expense?        @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  revenue     Revenue?        @relation(fields: [revenueId], references: [id], onDelete: SetNull)
+  createdById String
+  createdBy   User            @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime        @default(now())
+}
+
+model Invoice {
+  id              String                   @id @default(cuid())
+  invoiceNumber   String                   @unique
+  clientId        String
+  projectId       String?
+  amount          Decimal                  @db.Decimal(12, 2)
+  tax             Decimal                  @default(0) @db.Decimal(12, 2)
+  total           Decimal                  @db.Decimal(12, 2)
+  // Optional advance amount due now (e.g. 50% upfront)
+  advanceAmount   Decimal?                 @db.Decimal(12, 2)
+  discountAmount  Decimal                  @default(0) @db.Decimal(12, 2)
+  status          InvoiceStatus            @default(DRAFT)
+  dueDate         DateTime                 @db.Date
+  paidAt          DateTime?
+  notes           String?
+  /**
+   * Single-line italic note rendered between the totals card and the bulleted NOTES (e.g. "*Physical shooting not included…").
+   */
+  leadNote        String?
+  /**
+   * Client-supplied PO / reference number. Printed near the invoice number as "Ref: …".
+   */
+  referenceNumber String?
+  createdById     String
+  client          Client                   @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  project         Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy       User                     @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  items           InvoiceItem[]
+  creditNotes     CreditNote[]
+  allocations     PaymentAllocation[]
+  milestone       ProjectPaymentMilestone? @relation("MilestoneInvoice")
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([clientId])
+  @@index([projectId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  description String
+  /**
+   * Free-text duration shown in the PROJECT DURATION column on printed invoices (e.g. "2-3 days").
+   */
+  duration    String?
+  quantity    Decimal  @db.Decimal(10, 2)
+  price       Decimal  @db.Decimal(12, 2)
+  taxRateId   String?
+  taxRate     TaxRate? @relation(fields: [taxRateId], references: [id], onDelete: SetNull)
+  taxAmount   Decimal  @default(0) @db.Decimal(12, 2)
+  total       Decimal  @db.Decimal(12, 2)
+  sortOrder   Int      @default(0)
+}
+
+model Proposal {
+  id                   String                @id @default(cuid())
+  clientId             String
+  projectId            String?
+  projectName          String
+  // The headline executive-summary blurb at the top of the proposal.
+  description          String
+  // Optional client-context paragraph that explains why this engagement is needed.
+  projectUnderstanding String?
+  timeline             String
+  pricing              String
+  // Free-form text for the "Investment & Payment Terms" block (e.g. "50% advance · 30% mid · 20% on launch")
+  paymentTermsText     String?
+  // Validity — proposal expires after this date
+  validUntil           DateTime?             @db.Date
+  status               ProposalStatus        @default(DRAFT)
+  createdById          String
+  client               Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project              Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy            User                  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  blocks               ProposalBlock[]
+  deliverables         ProposalDeliverable[]
+  acceptance           ProposalAcceptance?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+}
+
+model ProposalBlock {
+  id            String   @id @default(cuid())
+  proposalId    String
+  proposal      Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  heading       String
+  content       String
+  // Optional duration (used by the timeline Gantt visualization)
+  durationWeeks Int?
+  sortOrder     Int      @default(0)
+}
+
+enum DeliverableKind {
+  INCLUDED // What the client receives
+  EXCLUDED // Out-of-scope / not included
+}
+
+model ProposalDeliverable {
+  id          String          @id @default(cuid())
+  proposalId  String
+  proposal    Proposal        @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  kind        DeliverableKind
+  title       String
+  description String?
+  // Optional per-feature price — drives the Pricing Breakdown page
+  amount      Decimal?        @db.Decimal(12, 2)
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+
+  @@index([proposalId])
+}
+
+model ResourceAllocation {
+  id             String    @id @default(cuid())
+  userId         String
+  projectId      String
+  allocatedHours Decimal   @db.Decimal(8, 2)
+  roleLabel      String
+  startDate      DateTime  @db.Date
+  endDate        DateTime? @db.Date
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, projectId, startDate])
+}
+
+model Document {
+  id            String             @id @default(cuid())
+  fileUrl       String
+  fileName      String
+  storageDriver DocumentStorage    @default(LOCAL)
+  entityType    DocumentEntityType
+  projectId     String?
+  clientId      String?
+  uploadedById  String
+  version       Int                @default(1)
+  mimeType      String?
+  sizeInBytes   Int?
+  project       Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  client        Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  uploadedBy    User               @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType    @default(GENERIC)
+  title     String
+  body      String?
+  channel   NotificationChannel @default(IN_APP)
+  status    NotificationStatus  @default(UNREAD)
+  actionUrl String?
+  link      String?
+  taskId    String?
+  projectId String?
+  readAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+model ReportExport {
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  format      String
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  fileUrl     String?
+  createdAt   DateTime @default(now())
+}
+
+// ── Activity/Audit Logs ──
+
+enum ActivityAction {
+  CREATED
+  UPDATED
+  DELETED
+  ASSIGNED
+  STATUS_CHANGED
+  COMMENTED
+  APPROVED
+  REJECTED
+  UPLOADED
+  SENT
+  LOGGED_IN
+}
+
+model ActivityLog {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     ActivityAction
+  entityType String
+  entityId   String?
+  entityName String?
+  details    String?
+  createdAt  DateTime       @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ── Lead Pipeline (CRM) ──
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+}
+
+model Lead {
+  id             String     @id @default(cuid())
+  companyName    String
+  contactName    String
+  email          String
+  phone          String?
+  source         String?
+  status         LeadStatus @default(NEW)
+  estimatedValue Decimal?   @db.Decimal(12, 2)
+  notes          String?
+  assignedToId   String?
+  assignedTo     User?      @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  convertedToId  String?    @unique
+  convertedTo    Client?    @relation("LeadConversion", fields: [convertedToId], references: [id], onDelete: SetNull)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  deal           Deal?      @relation("LeadToDeal")
+  activities     Activity[]
+}
+
+// ── Holiday Calendar ──
+
+model Holiday {
+  id          String   @id @default(cuid())
+  name        String
+  date        DateTime @db.Date
+  type        String   @default("PUBLIC")
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@unique([date, name])
+}
+
+// ── Knowledge Base ──
+
+model KnowledgeArticle {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  category  String
+  authorId  String
+  author    User     @relation("ArticleAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ── Expense Approval ──
+
+enum ApprovalStatus {
+  PENDING_APPROVAL
+  APPROVED_FINAL
+  REJECTED_FINAL
+}
+
+// ── Goals / OKRs / KPIs ──
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum GoalType {
+  GOAL
+  OKR
+  KPI
+}
+
+model Goal {
+  id           String     @id @default(cuid())
+  title        String
+  description  String?
+  type         GoalType   @default(GOAL)
+  targetValue  Decimal?   @db.Decimal(12, 2)
+  currentValue Decimal?   @db.Decimal(12, 2)
+  unit         String?
+  status       GoalStatus @default(NOT_STARTED)
+  startDate    DateTime?  @db.Date
+  dueDate      DateTime?  @db.Date
+  assigneeId   String
+  assignee     User       @relation("GoalAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+// ── Vendor Management ──
+
+model Vendor {
+  id                String             @id @default(cuid())
+  companyName       String
+  contactName       String?
+  email             String?
+  phone             String?
+  address           String?
+  category          String?
+  notes             String?
+  status            String             @default("ACTIVE")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  bills             Bill[]
+  payments          Payment[]
+  projectExpenses   ProjectExpense[]
+  recurringExpenses RecurringExpense[]
+}
+
+enum ProjectExpenseCategory {
+  SUBSCRIPTION
+  RENT
+  UTILITY
+  TRAVEL
+  SOFTWARE
+  EQUIPMENT
+  HOSTING
+  MARKETING
+  CONTRACTOR
+  OTHER
+}
+
+model ProjectExpense {
+  id               String                 @id @default(cuid())
+  projectId        String
+  project          Project                @relation("ProjectExpenses", fields: [projectId], references: [id], onDelete: Cascade)
+  category         ProjectExpenseCategory @default(OTHER)
+  description      String
+  amount           Decimal                @db.Decimal(12, 2)
+  incurredAt       DateTime
+  recurring        Boolean                @default(false)
+  recurrenceMonths Int?
+  notes            String?
+  vendorId         String?
+  vendor           Vendor?                @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  createdById      String?
+  createdBy        User?                  @relation("ProjectExpensesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([projectId, incurredAt])
+  @@index([category])
+}
+
+// ── Calendar / Meetings / Appointments ──
+
+enum EventType {
+  MEETING
+  APPOINTMENT
+  REMINDER
+  EVENT
+}
+
+model CalendarEvent {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  type        EventType @default(EVENT)
+  startTime   DateTime
+  endTime     DateTime?
+  allDay      Boolean   @default(false)
+  location    String?
+  organizerId String
+  organizer   User      @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ── Employee Onboarding ──
+
+model OnboardingChecklist {
+  id          String           @id @default(cuid())
+  title       String
+  description String?
+  items       OnboardingItem[]
+  createdAt   DateTime         @default(now())
+}
+
+model OnboardingItem {
+  id          String              @id @default(cuid())
+  checklistId String
+  checklist   OnboardingChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  title       String
+  completed   Boolean             @default(false)
+  assigneeId  String?
+  sortOrder   Int                 @default(0)
+  createdAt   DateTime            @default(now())
+}
+
+// ── Communication History ──
+
+model Communication {
+  id          String   @id @default(cuid())
+  clientId    String?
+  leadId      String?
+  type        String
+  subject     String
+  content     String?
+  direction   String   @default("OUTBOUND")
+  createdById String
+  createdBy   User     @relation("CommunicationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+}
+
+// ── Office Location / Geo-fencing ──
+
+model OfficeSettings {
+  id                 String   @id @default(cuid())
+  name               String   @default("Main Office")
+  latitude           Float
+  longitude          Float
+  radiusMeters       Int      @default(100)
+  geofenceEnabled    Boolean  @default(false)
+  // Comma-separated list of trusted office IPs / CIDR blocks. When a
+  // clock-in comes from one of these, the API accepts it even if the
+  // device couldn't share GPS — laptops on the office WiFi count as
+  // "at the office" the same way a phone with a valid GPS lock does.
+  // Examples: "203.0.113.42, 198.51.100.0/24, 2001:db8::/32".
+  allowedIpAddresses String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// ── Email Templates ──
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  body        String
+  category    String   @default("GENERAL")
+  createdById String
+  createdBy   User     @relation("TemplateCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CRM EXPANSION — Contacts, Deals, Activities (Zoho CRM parity)
+// ══════════════════════════════════════════════════════════════════
+
+model Contact {
+  id         String     @id @default(cuid())
+  clientId   String
+  client     Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  mobile     String?
+  title      String?
+  department String?
+  isPrimary  Boolean    @default(false)
+  notes      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  deals      Deal[]
+  activities Activity[]
+
+  @@index([clientId])
+}
+
+enum DealStage {
+  PROSPECTING
+  QUALIFICATION
+  PROPOSAL
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+model Deal {
+  id                String     @id @default(cuid())
+  name              String
+  clientId          String
+  client            Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contactId         String?
+  contact           Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  leadId            String?    @unique
+  lead              Lead?      @relation("LeadToDeal", fields: [leadId], references: [id], onDelete: SetNull)
+  stage             DealStage  @default(PROSPECTING)
+  amount            Decimal    @db.Decimal(14, 2)
+  probability       Int        @default(50)
+  expectedCloseDate DateTime?  @db.Date
+  actualCloseDate   DateTime?  @db.Date
+  ownerId           String
+  owner             User       @relation("DealOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  description       String?
+  lostReason        String?
+  source            String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  activities        Activity[]
+
+  @@index([stage])
+  @@index([ownerId])
+  @@index([clientId])
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  TASK
+}
+
+model Activity {
+  id           String       @id @default(cuid())
+  type         ActivityType
+  subject      String
+  description  String?
+  dueDate      DateTime?
+  completedAt  DateTime?
+  leadId       String?
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  dealId       String?
+  deal         Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  clientId     String?
+  client       Client?      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contactId    String?
+  contact      Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdById  String
+  createdBy    User         @relation("ActivityCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignedToId String?
+  assignedTo   User?        @relation("ActivityAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([leadId])
+  @@index([dealId])
+  @@index([clientId])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ACCOUNTING — Chart of Accounts, Items, Tax, Org Settings
+// ══════════════════════════════════════════════════════════════════
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum AccountSubType {
+  CASH
+  BANK
+  ACCOUNTS_RECEIVABLE
+  CURRENT_ASSET
+  FIXED_ASSET
+  OTHER_ASSET
+  ACCOUNTS_PAYABLE
+  CURRENT_LIABILITY
+  LONG_TERM_LIABILITY
+  OWNER_EQUITY
+  RETAINED_EARNINGS
+  OPERATING_REVENUE
+  OTHER_INCOME
+  COST_OF_GOODS_SOLD
+  OPERATING_EXPENSE
+  PAYROLL_EXPENSE
+  OTHER_EXPENSE
+  TAX_PAYABLE
+}
+
+model ChartAccount {
+  id               String            @id @default(cuid())
+  code             String            @unique
+  name             String
+  type             AccountType
+  subType          AccountSubType
+  parentId         String?
+  parent           ChartAccount?     @relation("AccountTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children         ChartAccount[]    @relation("AccountTree")
+  description      String?
+  isActive         Boolean           @default(true)
+  balance          Decimal           @default(0) @db.Decimal(16, 2)
+  isSystem         Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  items            Item[]            @relation("ItemIncomeAccount")
+  expenseItems     Item[]            @relation("ItemExpenseAccount")
+  bankAccounts     BankAccount[]
+  journalLines     JournalLine[]
+  billItems        BillItem[]
+  bankTransactions BankTransaction[]
+}
+
+model TaxRate {
+  id                    String                 @id @default(cuid())
+  name                  String
+  rate                  Decimal                @db.Decimal(6, 3)
+  type                  String                 @default("GST")
+  isCompound            Boolean                @default(false)
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  items                 Item[]
+  invoiceItems          InvoiceItem[]
+  estimateItems         EstimateItem[]
+  billItems             BillItem[]
+  creditNoteItems       CreditNoteItem[]
+  recurringInvoiceItems RecurringInvoiceItem[]
+}
+
+enum ItemType {
+  GOODS
+  SERVICE
+}
+
+model Item {
+  id                    String                 @id @default(cuid())
+  name                  String
+  sku                   String?
+  description           String?
+  type                  ItemType               @default(SERVICE)
+  sellingPrice          Decimal                @db.Decimal(12, 2)
+  purchasePrice         Decimal?               @db.Decimal(12, 2)
+  unit                  String                 @default("pcs")
+  incomeAccountId       String?
+  incomeAccount         ChartAccount?          @relation("ItemIncomeAccount", fields: [incomeAccountId], references: [id], onDelete: SetNull)
+  expenseAccountId      String?
+  expenseAccount        ChartAccount?          @relation("ItemExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: SetNull)
+  taxRateId             String?
+  taxRate               TaxRate?               @relation(fields: [taxRateId], references: [id], onDelete: SetNull)
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  invoiceItems          InvoiceItem[]
+  estimateItems         EstimateItem[]
+  billItems             BillItem[]
+  creditNoteItems       CreditNoteItem[]
+  recurringInvoiceItems RecurringInvoiceItem[]
+}
+
+model OrganizationSettings {
+  id                String   @id @default(cuid())
+  name              String   @default("Nuro7")
+  legalName         String?
+  logoUrl           String?
+  email             String?
+  phone             String?
+  website           String?
+  addressLine1      String?
+  addressLine2      String?
+  city              String?
+  state             String?
+  postalCode        String?
+  country           String?  @default("India")
+  taxId             String?
+  fiscalYearStart   String   @default("APRIL")
+  baseCurrency      String   @default("INR")
+  invoicePrefix     String   @default("INV-")
+  invoiceTerms      String?
+  invoiceFooter     String?
+  estimatePrefix    String   @default("EST-")
+  billPrefix        String   @default("BILL-")
+  creditNotePrefix  String   @default("CN-")
+  paymentTerms      Int      @default(30)
+  // Bank details shown on the invoice template
+  bankName          String?
+  bankAccountNumber String?
+  bankAccountHolder String?
+  bankBranch        String?
+  bankIfsc          String?
+  bankUpi           String?
+  // Optional circular stamp/seal image rendered on the invoice
+  stampUrl          String?
+  // "About us" narrative shown in the proposal template
+  aboutCompany      String?
+  /**
+   * CEO / authorised signatory name used in the proposal cover letter and signature blocks.
+   */
+  ceoName           String?
+  /**
+   * Optional title to show beneath ceoName (defaults to "CEO").
+   */
+  ceoTitle          String?
+  /**
+   * Default hourly billing rate (in baseCurrency) used by AI proposal generation and time-based invoicing.
+   */
+  defaultHourlyRate Decimal? @default(900) @db.Decimal(10, 2)
+  /**
+   * Universal Terms & Conditions rendered on the printed proposal (one clause per line).
+   * Separate from invoiceTerms — proposal T&Cs are stricter and more protective by design.
+   */
+  proposalTerms     String?
+  /// Outbound SMTP credentials. Stored here (not env) so SUPER_ADMIN can
+  /// rotate them from the Settings → Email page without redeploying. Only
+  /// the password is treated as a write-only secret in the API.
+  smtpHost          String?
+  smtpPort          Int?
+  smtpUser          String?
+  smtpPass          String?
+  smtpFrom          String?
+  smtpEnabled       Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Currency {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  symbol       String
+  exchangeRate Decimal  @default(1) @db.Decimal(12, 6)
+  isBase       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ACCOUNTING — Sales Docs (Estimates)
+// ══════════════════════════════════════════════════════════════════
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  INVOICED
+}
+
+model Estimate {
+  id                 String         @id @default(cuid())
+  estimateNumber     String         @unique
+  clientId           String
+  client             Client         @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  projectId          String?
+  project            Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  issueDate          DateTime       @db.Date
+  expiryDate         DateTime?      @db.Date
+  status             EstimateStatus @default(DRAFT)
+  subtotal           Decimal        @db.Decimal(14, 2)
+  taxAmount          Decimal        @default(0) @db.Decimal(14, 2)
+  discountAmount     Decimal        @default(0) @db.Decimal(14, 2)
+  total              Decimal        @db.Decimal(14, 2)
+  notes              String?
+  terms              String?
+  convertedInvoiceId String?        @unique
+  createdById        String
+  createdBy          User           @relation("EstimateCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  items              EstimateItem[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model EstimateItem {
+  id          String   @id @default(cuid())
+  estimateId  String
+  estimate    Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  description String
+  quantity    Decimal  @db.Decimal(10, 2)
+  price       Decimal  @db.Decimal(12, 2)
+  taxRateId   String?
+  taxRate     TaxRate? @relation(fields: [taxRateId], references: [id], onDelete: SetNull)
+  taxAmount   Decimal  @default(0) @db.Decimal(12, 2)
+  total       Decimal  @db.Decimal(12, 2)
+  sortOrder   Int      @default(0)
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ACCOUNTING — Purchase (Bills)
+// ══════════════════════════════════════════════════════════════════
+
+enum BillStatus {
+  DRAFT
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+model Bill {
+  id             String              @id @default(cuid())
+  billNumber     String              @unique
+  vendorId       String
+  vendor         Vendor              @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  projectId      String?
+  project        Project?            @relation("BillProject", fields: [projectId], references: [id], onDelete: SetNull)
+  issueDate      DateTime            @db.Date
+  dueDate        DateTime            @db.Date
+  status         BillStatus          @default(DRAFT)
+  subtotal       Decimal             @db.Decimal(14, 2)
+  taxAmount      Decimal             @default(0) @db.Decimal(14, 2)
+  discountAmount Decimal             @default(0) @db.Decimal(14, 2)
+  total          Decimal             @db.Decimal(14, 2)
+  amountPaid     Decimal             @default(0) @db.Decimal(14, 2)
+  notes          String?
+  terms          String?
+  createdById    String
+  createdBy      User                @relation("BillCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  items          BillItem[]
+  allocations    PaymentAllocation[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([vendorId])
+  @@index([projectId])
+  @@index([status])
+}
+
+model BillItem {
+  id          String        @id @default(cuid())
+  billId      String
+  bill        Bill          @relation(fields: [billId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        Item?         @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  accountId   String?
+  account     ChartAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  description String
+  quantity    Decimal       @db.Decimal(10, 2)
+  price       Decimal       @db.Decimal(12, 2)
+  taxRateId   String?
+  taxRate     TaxRate?      @relation(fields: [taxRateId], references: [id], onDelete: SetNull)
+  taxAmount   Decimal       @default(0) @db.Decimal(12, 2)
+  total       Decimal       @db.Decimal(12, 2)
+  sortOrder   Int           @default(0)
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ACCOUNTING — Payments
+// ══════════════════════════════════════════════════════════════════
+
+enum PaymentType {
+  RECEIVED
+  MADE
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  CHECK
+  UPI
+  OTHER
+}
+
+model Payment {
+  id                 String              @id @default(cuid())
+  paymentNumber      String              @unique
+  type               PaymentType
+  amount             Decimal             @db.Decimal(14, 2)
+  paymentDate        DateTime            @db.Date
+  method             PaymentMethod       @default(BANK_TRANSFER)
+  reference          String?
+  notes              String?
+  // Lightweight tag for expense-style Payments (type=MADE). Drives the
+  // /expenses dashboard categorisation; nullable so old data + non-expense
+  // payments don't carry a category.
+  expenseCategory    ExpenseCategory?
+  // Set when this Payment was generated from a RecurringExpense template.
+  recurringExpenseId String?
+  recurringExpense   RecurringExpense?   @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+  clientId           String?
+  client             Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  vendorId           String?
+  vendor             Vendor?             @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  bankAccountId      String?
+  bankAccount        BankAccount?        @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
+  createdById        String
+  createdBy          User                @relation("PaymentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  allocations        PaymentAllocation[]
+  bankTxns           BankTransaction[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([clientId])
+  @@index([vendorId])
+  @@index([paymentDate])
+  @@index([expenseCategory])
+  @@index([recurringExpenseId])
+}
+
+enum ExpenseCategory {
+  RENT
+  UTILITIES
+  INTERNET
+  SUBSCRIPTION
+  OFFICE_SUPPLIES
+  TRAVEL
+  MEALS
+  EQUIPMENT
+  MARKETING
+  PROFESSIONAL_FEES
+  SALARY
+  INSURANCE
+  REPAIRS
+  TRAINING
+  TAXES
+  OTHER
+}
+
+enum ExpenseFrequency {
+  MONTHLY
+  QUARTERLY
+  HALF_YEARLY
+  YEARLY
+}
+
+/// Template for a recurring outflow (rent, SaaS subs, utilities, etc.).
+/// Each cycle the generate-due job converts this into a Payment row with
+/// type=MADE, which then auto-posts to the GL through the normal payment
+/// hook. lastGeneratedFor records the period (YYYY-MM-01 anchored) so we
+/// can compute the next due date deterministically without scanning all
+/// past payments.
+model RecurringExpense {
+  id                String           @id @default(cuid())
+  title             String
+  category          ExpenseCategory  @default(OTHER)
+  vendorId          String?
+  vendor            Vendor?          @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  amount            Decimal          @db.Decimal(14, 2)
+  method            PaymentMethod    @default(BANK_TRANSFER)
+  bankAccountId     String?
+  bankAccount       BankAccount?     @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
+  frequency         ExpenseFrequency @default(MONTHLY)
+  // For MONTHLY: 1–31 (clamps to month end). For QUARTERLY/YEARLY:
+  // anniversary day used along with startDate to derive each cycle.
+  dayOfMonth        Int              @default(1)
+  startDate         DateTime         @db.Date
+  endDate           DateTime?        @db.Date
+  isActive          Boolean          @default(true)
+  // Anchored first-of-month / first-of-quarter / first-of-year date of
+  // the last cycle that was generated. Null means never generated.
+  lastGeneratedFor  DateTime?        @db.Date
+  notes             String?
+  createdById       String
+  createdBy         User             @relation("RecurringExpenseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  generatedPayments Payment[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([isActive])
+  @@index([category])
+}
+
+model PaymentAllocation {
+  id        String   @id @default(cuid())
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  billId    String?
+  bill      Bill?    @relation(fields: [billId], references: [id], onDelete: SetNull)
+  amount    Decimal  @db.Decimal(14, 2)
+  createdAt DateTime @default(now())
+
+  @@index([paymentId])
+  @@index([invoiceId])
+  @@index([billId])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ACCOUNTING — Credit Notes
+// ══════════════════════════════════════════════════════════════════
+
+enum CreditNoteStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  VOID
+}
+
+model CreditNote {
+  id            String           @id @default(cuid())
+  creditNumber  String           @unique
+  clientId      String
+  client        Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  invoiceId     String?
+  invoice       Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  issueDate     DateTime         @db.Date
+  reason        String?
+  status        CreditNoteStatus @default(DRAFT)
+  subtotal      Decimal          @db.Decimal(14, 2)
+  taxAmount     Decimal          @default(0) @db.Decimal(14, 2)
+  total         Decimal          @db.Decimal(14, 2)
+  amountApplied Decimal          @default(0) @db.Decimal(14, 2)
+  createdById   String
+  createdBy     User             @relation("CreditNoteCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  items         CreditNoteItem[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([clientId])
+}
+
+model CreditNoteItem {
+  id           String     @id @default(cuid())
+  creditNoteId String
+  creditNote   CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  itemId       String?
+  item         Item?      @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  description  String
+  quantity     Decimal    @db.Decimal(10, 2)
+  price        Decimal    @db.Decimal(12, 2)
+  taxRateId    String?
+  taxRate      TaxRate?   @relation(fields: [taxRateId], references: [id], onDelete: SetNull)
+  taxAmount    Decimal    @default(0) @db.Decimal(12, 2)
+  total        Decimal    @db.Decimal(12, 2)
+  sortOrder    Int        @default(0)
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ACCOUNTING — Bank Accounts & Reconciliation
+// ══════════════════════════════════════════════════════════════════
+
+enum BankAccountType {
+  BANK
+  CASH
+  CREDIT_CARD
+}
+
+model BankAccount {
+  id                String             @id @default(cuid())
+  name              String
+  type              BankAccountType    @default(BANK)
+  accountNumber     String?
+  bankName          String?
+  currency          String             @default("INR")
+  openingBalance    Decimal            @default(0) @db.Decimal(14, 2)
+  currentBalance    Decimal            @default(0) @db.Decimal(14, 2)
+  accountId         String?
+  account           ChartAccount?      @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  // Exactly one BankAccount should be marked primary at a time. Auto-
+  // posting routes everything (invoice payments, bill payments, payroll,
+  // founder draws/loans) through this account when no other bank is
+  // specified on the payment. Uniqueness is enforced by the service
+  // layer rather than a DB constraint so demoting + promoting in a
+  // single transaction stays clean.
+  isPrimary         Boolean            @default(false)
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  payments          Payment[]
+  transactions      BankTransaction[]
+  recurringExpenses RecurringExpense[]
+}
+
+enum BankTxnType {
+  DEBIT
+  CREDIT
+}
+
+model BankTransaction {
+  id             String        @id @default(cuid())
+  bankAccountId  String
+  bankAccount    BankAccount   @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  date           DateTime      @db.Date
+  amount         Decimal       @db.Decimal(14, 2)
+  type           BankTxnType
+  description    String
+  reference      String?
+  categoryId     String?
+  category       ChartAccount? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  reconciledAt   DateTime?
+  paymentId      String?
+  payment        Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  // Auto-post mirror anchor: when AutoPostService writes a BankTransaction
+  // to mirror a JournalEntry's cash-side, it stores the JE id here.
+  // Backfill checks for missing mirrors via this column so it can fill
+  // in bank-side entries that were skipped (e.g. JE posted before a
+  // primary bank existed, then bank added later). Uniqueness enforced
+  // at the service layer (DB-level @unique can't be added without an
+  // interactive prisma migrate prompt).
+  journalEntryId String?
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@index([bankAccountId])
+  @@index([date])
+  @@index([journalEntryId])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ACCOUNTING — Manual Journal Entries
+// ══════════════════════════════════════════════════════════════════
+
+// Source of a JournalEntry. AUTO entries are written by the auto-post
+// service when an upstream record (Payment, PaySlip, FounderLedgerEntry)
+// is created; MANUAL entries are hand-keyed in the /journal-entries page.
+// Idempotency (a re-run / retry can't double-book) is enforced in the
+// service layer by checking findFirst(source, sourceId) before insert.
+enum JournalEntrySource {
+  MANUAL
+  PAYMENT
+  PAY_SLIP
+  FOUNDER_LEDGER
+  OPENING_BALANCE
+  CREDIT_NOTE
+}
+
+model JournalEntry {
+  id               String             @id @default(cuid())
+  journalNumber    String             @unique
+  date             DateTime           @db.Date
+  description      String
+  reference        String?
+  source           JournalEntrySource @default(MANUAL)
+  // Pointer back to the originating record (Payment.id, PaySlip.id,
+  // FounderLedgerEntry.id) so the dashboard can deep-link from a journal
+  // row to the source document. Null for MANUAL entries.
+  sourceId         String?
+  createdById      String
+  createdBy        User               @relation("JournalCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  lines            JournalLine[]
+  bankTransactions BankTransaction[]
+  createdAt        DateTime           @default(now())
+
+  @@index([date])
+  @@index([source, sourceId])
+}
+
+model JournalLine {
+  id          String       @id @default(cuid())
+  journalId   String
+  journal     JournalEntry @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     ChartAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  debit       Decimal      @default(0) @db.Decimal(14, 2)
+  credit      Decimal      @default(0) @db.Decimal(14, 2)
+  description String?
+  sortOrder   Int          @default(0)
+
+  @@index([journalId])
+  @@index([accountId])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ACCOUNTING — Recurring Invoices
+// ══════════════════════════════════════════════════════════════════
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum RecurringStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+model RecurringInvoice {
+  id          String                 @id @default(cuid())
+  name        String
+  clientId    String
+  client      Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  frequency   Frequency              @default(MONTHLY)
+  startDate   DateTime               @db.Date
+  endDate     DateTime?              @db.Date
+  nextRunDate DateTime               @db.Date
+  lastRunDate DateTime?              @db.Date
+  status      RecurringStatus        @default(ACTIVE)
+  subtotal    Decimal                @db.Decimal(14, 2)
+  taxAmount   Decimal                @default(0) @db.Decimal(14, 2)
+  total       Decimal                @db.Decimal(14, 2)
+  notes       String?
+  createdById String
+  createdBy   User                   @relation("RecurringInvoiceCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  items       RecurringInvoiceItem[]
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+}
+
+model RecurringInvoiceItem {
+  id                 String           @id @default(cuid())
+  recurringInvoiceId String
+  recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
+  itemId             String?
+  item               Item?            @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  description        String
+  quantity           Decimal          @db.Decimal(10, 2)
+  price              Decimal          @db.Decimal(12, 2)
+  taxRateId          String?
+  taxRate            TaxRate?         @relation(fields: [taxRateId], references: [id], onDelete: SetNull)
+  total              Decimal          @db.Decimal(12, 2)
+  sortOrder          Int              @default(0)
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HRM — Payroll
+// ══════════════════════════════════════════════════════════════════
+
+model SalaryStructure {
+  id               String          @id @default(cuid())
+  employeeId       String          @unique
+  employee         EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  basic            Decimal         @db.Decimal(12, 2)
+  hra              Decimal         @default(0) @db.Decimal(12, 2)
+  conveyance       Decimal         @default(0) @db.Decimal(12, 2)
+  medical          Decimal         @default(0) @db.Decimal(12, 2)
+  specialAllowance Decimal         @default(0) @db.Decimal(12, 2)
+  otherAllowance   Decimal         @default(0) @db.Decimal(12, 2)
+  pfDeduction      Decimal         @default(0) @db.Decimal(12, 2)
+  taxDeduction     Decimal         @default(0) @db.Decimal(12, 2)
+  otherDeductions  Decimal         @default(0) @db.Decimal(12, 2)
+  effectiveFrom    DateTime        @db.Date
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+enum PayrollStatus {
+  DRAFT
+  PROCESSED
+  PAID
+}
+
+model PayrollRun {
+  id              String        @id @default(cuid())
+  month           Int
+  year            Int
+  status          PayrollStatus @default(DRAFT)
+  processedAt     DateTime?
+  processedById   String?
+  processedBy     User?         @relation("PayrollProcessor", fields: [processedById], references: [id], onDelete: SetNull)
+  totalGross      Decimal       @default(0) @db.Decimal(14, 2)
+  totalDeductions Decimal       @default(0) @db.Decimal(14, 2)
+  totalNet        Decimal       @default(0) @db.Decimal(14, 2)
+  slips           PaySlip[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([month, year])
+}
+
+enum PaySlipStatus {
+  PENDING
+  PAID
+}
+
+model PaySlip {
+  id               String          @id @default(cuid())
+  payrollRunId     String
+  payrollRun       PayrollRun      @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month            Int
+  year             Int
+  basic            Decimal         @db.Decimal(12, 2)
+  hra              Decimal         @default(0) @db.Decimal(12, 2)
+  allowances       Decimal         @default(0) @db.Decimal(12, 2)
+  grossSalary      Decimal         @db.Decimal(12, 2)
+  pfDeduction      Decimal         @default(0) @db.Decimal(12, 2)
+  taxDeduction     Decimal         @default(0) @db.Decimal(12, 2)
+  otherDeductions  Decimal         @default(0) @db.Decimal(12, 2)
+  netSalary        Decimal         @db.Decimal(12, 2)
+  // Founder-only deferred-compensation fields. drawnAmount is what the
+  // founder actually withdrew this month (defaults to netSalary = full
+  // draw); deferredAmount is the gap they're subsidising the company by.
+  // For non-founders these stay at netSalary / 0 respectively and the UI
+  // hides them.
+  drawnAmount      Decimal?        @db.Decimal(12, 2)
+  deferredAmount   Decimal         @default(0) @db.Decimal(12, 2)
+  workingDays      Int
+  paidDays         Int
+  leaveDays        Int             @default(0)
+  status           PaySlipStatus   @default(PENDING)
+  paidAt           DateTime?
+  paymentReference String?
+  createdAt        DateTime        @default(now())
+
+  @@unique([payrollRunId, employeeId])
+  @@index([employeeId])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HRM — Performance Reviews
+// ══════════════════════════════════════════════════════════════════
+
+enum ReviewType {
+  ANNUAL
+  QUARTERLY
+  PROBATION
+  SIX_MONTH
+  THREE_SIXTY
+}
+
+enum ReviewCycleStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+}
+
+model ReviewCycle {
+  id         String              @id @default(cuid())
+  name       String
+  startDate  DateTime            @db.Date
+  endDate    DateTime            @db.Date
+  reviewType ReviewType          @default(QUARTERLY)
+  status     ReviewCycleStatus   @default(DRAFT)
+  reviews    PerformanceReview[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+}
+
+enum ReviewStatus {
+  NOT_STARTED
+  SELF_REVIEW
+  MANAGER_REVIEW
+  COMPLETED
+}
+
+model PerformanceReview {
+  id               String              @id @default(cuid())
+  cycleId          String
+  cycle            ReviewCycle         @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         User                @relation("ReviewEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewerId       String
+  reviewer         User                @relation("ReviewReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  status           ReviewStatus        @default(NOT_STARTED)
+  selfRating       Decimal?            @db.Decimal(3, 1)
+  managerRating    Decimal?            @db.Decimal(3, 1)
+  finalRating      Decimal?            @db.Decimal(3, 1)
+  selfComments     String?
+  managerComments  String?
+  strengths        String?
+  improvementAreas String?
+  goalsForNext     String?
+  submittedAt      DateTime?
+  completedAt      DateTime?
+  feedback360      Review360Feedback[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@unique([cycleId, employeeId])
+}
+
+enum FeedbackRelationship {
+  PEER
+  SUBORDINATE
+  MANAGER
+  EXTERNAL
+}
+
+model Review360Feedback {
+  id           String               @id @default(cuid())
+  reviewId     String
+  review       PerformanceReview    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reviewerId   String
+  reviewer     User                 @relation("Feedback360Reviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  relationship FeedbackRelationship
+  rating       Decimal              @db.Decimal(3, 1)
+  strengths    String?
+  improvements String?
+  comments     String?
+  submittedAt  DateTime             @default(now())
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HRM — Shifts, Assets, Announcements, Timesheets
+// ══════════════════════════════════════════════════════════════════
+
+model Shift {
+  id        String          @id @default(cuid())
+  name      String
+  startTime String
+  endTime   String
+  isDefault Boolean         @default(false)
+  schedules ShiftSchedule[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model ShiftSchedule {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("ShiftUser", fields: [userId], references: [id], onDelete: Cascade)
+  shiftId   String
+  shift     Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  UNDER_REPAIR
+  RETIRED
+  LOST
+}
+
+model Asset {
+  id            String      @id @default(cuid())
+  name          String
+  category      String
+  serialNumber  String?
+  model         String?
+  manufacturer  String?
+  assignedToId  String?
+  assignedTo    User?       @relation("AssetAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedAt    DateTime?
+  purchaseDate  DateTime?   @db.Date
+  purchasePrice Decimal?    @db.Decimal(12, 2)
+  status        AssetStatus @default(AVAILABLE)
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+enum AnnouncementPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Announcement {
+  id            String               @id @default(cuid())
+  title         String
+  content       String
+  priority      AnnouncementPriority @default(MEDIUM)
+  pinnedUntil   DateTime?
+  publishedById String
+  publishedBy   User                 @relation("AnnouncementPublisher", fields: [publishedById], references: [id], onDelete: Cascade)
+  publishedAt   DateTime             @default(now())
+}
+
+enum TimesheetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model TimesheetSubmission {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation("TimesheetUser", fields: [userId], references: [id], onDelete: Cascade)
+  weekStart    DateTime        @db.Date
+  weekEnd      DateTime        @db.Date
+  totalHours   Decimal         @default(0) @db.Decimal(6, 2)
+  status       TimesheetStatus @default(DRAFT)
+  submittedAt  DateTime?
+  approvedById String?
+  approvedBy   User?           @relation("TimesheetApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+  comments     String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([userId, weekStart])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Saved filter views (per user, per module)
+// ══════════════════════════════════════════════════════════════════
+
+model SavedView {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("SavedViewsUser", fields: [userId], references: [id], onDelete: Cascade)
+  module    String // "clients" | "tasks" | "projects" | etc.
+  name      String
+  filters   Json // arbitrary filter state
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, module])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Org-level custom field definitions — renders dynamic inputs on forms
+// ══════════════════════════════════════════════════════════════════
+
+enum CustomFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+  URL
+}
+
+model CustomFieldDef {
+  id        String          @id @default(cuid())
+  entity    String // "client" | "project" | "task" | etc.
+  key       String // machine-safe key, e.g. "renewalMonth"
+  label     String // human label
+  type      CustomFieldType @default(TEXT)
+  options   String[]        @default([]) // for SELECT / MULTI_SELECT
+  required  Boolean         @default(false)
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([entity, key])
+  @@index([entity])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Recurring Tasks — auto-generate a task on a schedule
+// ══════════════════════════════════════════════════════════════════
+
+model RecurringTaskTemplate {
+  id             String          @id @default(cuid())
+  projectId      String
+  project        Project         @relation("RecurringTaskProject", fields: [projectId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  priority       Priority        @default(MEDIUM)
+  assignedToId   String?
+  assignedTo     User?           @relation("RecurringTaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  storyPoints    Int?
+  estimatedHrs   Decimal?        @db.Decimal(8, 2)
+  sprintAssign   Boolean         @default(false)
+  frequency      Frequency       @default(WEEKLY)
+  dayOfWeek      Int?
+  dayOfMonth     Int?
+  startDate      DateTime        @db.Date
+  endDate        DateTime?       @db.Date
+  nextRunAt      DateTime        @db.Date
+  lastRunAt      DateTime?       @db.Date
+  status         RecurringStatus @default(ACTIVE)
+  createdById    String
+  createdBy      User            @relation("RecurringTaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  generatedTasks Task[]          @relation("RecurringTaskGenerated")
+
+  @@index([projectId])
+  @@index([nextRunAt])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Per-project custom task statuses (override default enum)
+// ══════════════════════════════════════════════════════════════════
+
+model ProjectTaskStatus {
+  id        String             @id @default(cuid())
+  projectId String
+  project   Project            @relation("ProjectCustomStatuses", fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  color     String             @default("#94a3b8")
+  sortOrder Int                @default(0)
+  isDone    Boolean            @default(false)
+  isDefault Boolean            @default(false)
+  category  TaskStatusCategory @default(TODO)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  tasks     Task[]             @relation("TaskCustomStatus")
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Sprint Burndown — daily snapshot of remaining points/tasks
+// ══════════════════════════════════════════════════════════════════
+
+model SprintBurndownSnapshot {
+  id              String   @id @default(cuid())
+  sprintId        String
+  sprint          Sprint   @relation("SprintBurndown", fields: [sprintId], references: [id], onDelete: Cascade)
+  date            DateTime @db.Date
+  pointsCompleted Int      @default(0)
+  pointsRemaining Int      @default(0)
+  tasksCompleted  Int      @default(0)
+  tasksRemaining  Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@unique([sprintId, date])
+  @@index([sprintId])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Time-entry approval workflow
+// ══════════════════════════════════════════════════════════════════
+
+enum TimeEntryApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Task watchers — anyone can subscribe to a task's change notifications
+// ══════════════════════════════════════════════════════════════════
+
+model TaskWatcher {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("TaskWatcher", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Sprint retrospective — end-of-sprint reflection + action items
+// ══════════════════════════════════════════════════════════════════
+
+model SprintRetrospective {
+  id          String   @id @default(cuid())
+  sprintId    String   @unique
+  sprint      Sprint   @relation("SprintRetro", fields: [sprintId], references: [id], onDelete: Cascade)
+  wentWell    String?
+  toImprove   String?
+  actionItems String?
+  createdById String
+  createdBy   User     @relation("RetroCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum ChannelType {
+  GLOBAL
+  PROJECT
+  DIRECT
+  GROUP
+}
+
+model Channel {
+  id          String          @id @default(cuid())
+  type        ChannelType
+  name        String
+  description String?
+  projectId   String?
+  project     Project?        @relation("ProjectChannel", fields: [projectId], references: [id], onDelete: Cascade)
+  directKey   String?         @unique
+  isPrivate   Boolean         @default(false)
+  createdById String?
+  createdBy   User?           @relation("ChannelsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  members     ChannelMember[]
+  messages    ChatMessage[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  archivedAt  DateTime?
+
+  @@index([type])
+  @@index([projectId])
+}
+
+model ChannelMember {
+  channelId  String
+  userId     String
+  lastReadAt DateTime @default(now())
+  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user       User     @relation("ChannelMembers", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([channelId, userId])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id        String         @id @default(cuid())
+  channelId String
+  authorId  String
+  content   String
+  editedAt  DateTime?
+  deletedAt DateTime?
+  channel   Channel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author    User           @relation("ChatMessagesAuthored", fields: [authorId], references: [id], onDelete: Cascade)
+  reactions ChatReaction[]
+  createdAt DateTime       @default(now())
+
+  @@index([channelId, createdAt])
+}
+
+model ChatReaction {
+  messageId String
+  userId    String
+  emoji     String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User        @relation("ChatReactions", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@id([messageId, userId, emoji])
+}
+
+// ── HR foundation additions ──
+
+enum HrNoteCategory {
+  KUDOS
+  DISCIPLINARY
+  ACCOMMODATION
+  GENERAL
+}
+
+model HrNote {
+  id         String          @id @default(cuid())
+  employeeId String
+  employee   EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User            @relation("HrNoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  category   HrNoteCategory  @default(GENERAL)
+  body       String
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([employeeId, createdAt])
+}
+
+enum EmploymentEventType {
+  HIRED
+  PROMOTED
+  TRANSFERRED
+  SALARY_CHANGE
+  TERMINATED
+  REJOINED
+}
+
+model EmploymentStatusEvent {
+  id            String              @id @default(cuid())
+  employeeId    String
+  employee      EmployeeProfile     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type          EmploymentEventType
+  fromValue     String?
+  toValue       String?
+  effectiveDate DateTime            @db.Date
+  reason        String?
+  createdById   String
+  createdBy     User                @relation("EmploymentEventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt     DateTime            @default(now())
+
+  @@index([employeeId, effectiveDate])
+}
+
+// ── Client Portal ──
+
+enum ClientContactStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ClientRequestStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum AcceptanceDecision {
+  ACCEPTED
+  REJECTED
+}
+
+model ClientContact {
+  id        String              @id @default(cuid())
+  clientId  String
+  client    Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  email     String
+  name      String?
+  status    ClientContactStatus @default(ACTIVE)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  magicLinks          ClientMagicLink[]
+  sessions            ClientPortalSession[]
+  requests            ClientRequest[]
+  messages            ClientRequestMessage[]
+  proposalAcceptances ProposalAcceptance[]
+  projectMessages     ProjectClientMessage[] @relation("ContactProjectMessages")
+
+  @@unique([clientId, email])
+  @@index([email])
+}
+
+model ClientMagicLink {
+  id        String        @id @default(cuid())
+  contactId String
+  contact   ClientContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+  ip        String?
+
+  @@index([contactId])
+}
+
+model ClientPortalSession {
+  id         String        @id @default(cuid())
+  contactId  String
+  contact    ClientContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tokenHash  String        @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastSeenAt DateTime      @default(now())
+  userAgent  String?
+  ip         String?
+
+  @@index([contactId])
+}
+
+model ClientRequest {
+  id           String                 @id @default(cuid())
+  clientId     String
+  client       Client                 @relation(fields: [clientId], references: [id])
+  projectId    String?
+  project      Project?               @relation(fields: [projectId], references: [id])
+  createdById  String
+  createdBy    ClientContact          @relation(fields: [createdById], references: [id])
+  title        String
+  body         String
+  status       ClientRequestStatus    @default(OPEN)
+  linkedTaskId String?
+  linkedTask   Task?                  @relation(fields: [linkedTaskId], references: [id])
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  messages     ClientRequestMessage[]
+
+  @@index([clientId, status])
+  @@index([createdById])
+}
+
+model ClientRequestMessage {
+  id              String         @id @default(cuid())
+  requestId       String
+  request         ClientRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorContactId String?
+  authorContact   ClientContact? @relation(fields: [authorContactId], references: [id])
+  authorUserId    String?
+  authorUser      User?          @relation(fields: [authorUserId], references: [id])
+  body            String
+  createdAt       DateTime       @default(now())
+
+  @@index([requestId, createdAt])
+}
+
+model ProposalAcceptance {
+  id         String             @id @default(cuid())
+  proposalId String             @unique
+  proposal   Proposal           @relation(fields: [proposalId], references: [id])
+  contactId  String
+  contact    ClientContact      @relation(fields: [contactId], references: [id])
+  decision   AcceptanceDecision
+  note       String?
+  ip         String
+  userAgent  String
+  decidedAt  DateTime           @default(now())
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Co-founder bookkeeping — capital account ledger + cap table
+// ══════════════════════════════════════════════════════════════════
+
+// Direction of a capital-account entry from the founder's perspective.
+// CREDIT increases the company's IOU to the founder (loan from founder,
+// reimbursement owed). DEBIT decreases it (founder took a distribution,
+// company repaid the loan).
+enum FounderLedgerDirection {
+  CREDIT
+  DEBIT
+}
+
+enum FounderLedgerKind {
+  LOAN_IN // Founder lent cash to the company (CREDIT)
+  EXPENSE_REIMBURSEMENT // Founder paid an expense out of pocket; pending repay (CREDIT)
+  DISTRIBUTION // Founder took a draw / dividend (DEBIT)
+  REPAYMENT // Company paid back part of the IOU (DEBIT)
+  OTHER // Catch-all so HR can describe edge cases manually
+}
+
+// A single capital-account transaction for a founder. Deferred salary
+// from pay slips is NOT stored here — it lives on PaySlip.deferredAmount
+// and is rolled up alongside ledger entries at read time so we have one
+// source of truth per data type.
+model FounderLedgerEntry {
+  id          String                 @id @default(cuid())
+  employeeId  String
+  employee    EmployeeProfile        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date        DateTime               @db.Date
+  direction   FounderLedgerDirection
+  kind        FounderLedgerKind
+  // Always stored as a positive number; `direction` carries the sign so
+  // we can index/aggregate without worrying about negative-decimal math.
+  amount      Decimal                @db.Decimal(14, 2)
+  description String?
+  reference   String? // optional external ref (cheque #, txn id, etc.)
+  createdById String
+  createdBy   User                   @relation("FounderLedgerCreator", fields: [createdById], references: [id])
+  createdAt   DateTime               @default(now())
+
+  @@index([employeeId, date])
+  @@index([kind])
+}
+
+// Equity grant to a founder or employee (ESOP). Vesting is computed at
+// read time from grantDate + cliffMonths + vestingMonths so we don't
+// have to write a job that updates vested totals every day. Hand-rolled
+// math beats a cron for this volume.
+enum EquityGrantStatus {
+  ACTIVE
+  CANCELLED
+  EXERCISED
+}
+
+enum EquityGrantType {
+  FOUNDER_SHARES
+  ESOP
+  INVESTOR
+  ADVISOR
+  OTHER
+}
+
+model EquityGrant {
+  id               String           @id @default(cuid())
+  // Internal grants link to an EmployeeProfile; external grants (e.g.
+  // outside investors, advisors who aren't employees) leave employeeId
+  // null and fill the holder* fields below.
+  employeeId       String?
+  employee         EmployeeProfile? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  // External-holder fields. Required when employeeId is null (enforced
+  // by the service, not the DB, so DB-level edits stay flexible).
+  holderName       String?
+  holderEmail      String?
+  organization     String? // VC firm, fund, advisor org, etc.
+  // Cash side of an investment round. Mostly meaningful for type=INVESTOR
+  // but allowed on any grant for completeness (e.g. an advisor who
+  // exercised cash-warrants).
+  investmentAmount Decimal?         @db.Decimal(14, 2)
+  investmentDate   DateTime?        @db.Date
+
+  type          EquityGrantType   @default(FOUNDER_SHARES)
+  // Number of shares granted (whole shares for simplicity). For % views
+  // we divide by CompanyValuation.totalShares at read time.
+  shares        Int
+  // Vesting schedule. cliffMonths=0 + vestingMonths=0 means fully vested
+  // on grantDate (common for founder shares + investor shares).
+  // cliffMonths=12 + vestingMonths=48 is the standard "4-year vest with
+  // 1-year cliff".
+  grantDate     DateTime          @db.Date
+  vestingMonths Int               @default(0)
+  cliffMonths   Int               @default(0)
+  status        EquityGrantStatus @default(ACTIVE)
+  notes         String?
+  createdById   String
+  createdBy     User              @relation("EquityGrantCreator", fields: [createdById], references: [id])
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([employeeId])
+  @@index([type])
+  @@index([status])
+}
+
+// Snapshot of the company's total share count and most-recent valuation.
+// We keep history because new investment rounds change both numbers and
+// you want a dated trail of the cap-table evolution. Reads use the most
+// recent row (max asOf).
+model CompanyValuation {
+  id          String   @id @default(cuid())
+  // Total issued shares (sum of all EquityGrant.shares + treasury, etc.)
+  // as of asOf. Used as the denominator for ownership %.
+  totalShares Int
+  // Per-share valuation (post-money / latest 409A / whatever you anchor
+  // on). Stored in the company's reporting currency (₹).
+  sharePrice  Decimal  @db.Decimal(14, 4)
+  asOf        DateTime @db.Date
+  notes       String?
+  createdById String
+  createdBy   User     @relation("ValuationCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([asOf])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Credential vault — encrypted store for team secrets (passwords, API keys,
+// SSH keys, DB connection strings, certificates, env files, free-form notes).
+//
+// Threat model: the database may be backed up, cloned, or read by a DBA. The
+// `ciphertext` column is AES-256-GCM encrypted at rest with a key that lives
+// outside the DB (CREDENTIAL_VAULT_KEY env). Plaintext fields (name, username,
+// url, tags, type) stay searchable; everything secret goes into the encrypted
+// JSON payload. Access is row-level: owner + explicit shares only, with an
+// append-only audit log of every reveal/share/rotation.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum CredentialType {
+  PASSWORD
+  API_KEY
+  SSH_KEY
+  DATABASE
+  CERTIFICATE
+  ENV_FILE
+  CARD
+  NOTE
+  // Dedicated high-value types — surfaced separately because they ship with
+  // platform pickers, recovery-email/phone fields, and 2FA backup codes, and
+  // because they typically warrant `requiresReason=true` on reveal.
+  SOCIAL_MEDIA
+  EMAIL_ACCOUNT
+  GENERIC
+}
+
+enum CredentialAccessRole {
+  VIEWER // can reveal & view
+  EDITOR // can update + share
+  OWNER // full control (transferred via ownership change)
+}
+
+enum CredentialAuditAction {
+  CREATED
+  UPDATED
+  REVEALED // user decrypted the secret payload
+  SHARED
+  UNSHARED
+  ROLE_CHANGED
+  ROTATED // secret value replaced
+  DELETED
+  RENAMED
+  FOLDER_MOVED
+}
+
+model CredentialFolder {
+  id          String             @id @default(cuid())
+  name        String
+  description String?
+  // Color hex stored as #RRGGBB — used to tint the folder card in the UI.
+  color       String?
+  parentId    String?
+  parent      CredentialFolder?  @relation("CredentialFolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    CredentialFolder[] @relation("CredentialFolderTree")
+  credentials Credential[]
+  createdById String
+  createdBy   User               @relation("CredentialFolderCreator", fields: [createdById], references: [id])
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([parentId])
+  @@index([createdById])
+}
+
+model Credential {
+  id                   String             @id @default(cuid())
+  name                 String
+  type                 CredentialType     @default(PASSWORD)
+  description          String?
+  // Username / login / email associated with the credential. Searchable.
+  username             String?
+  // URL or host the credential is for. Surface in the list for quick scan.
+  url                  String?
+  // AES-256-GCM payload — format: base64(iv).base64(ciphertext).base64(tag)
+  // Holds the JSON {password, apiKey, privateKey, cert, value, notes, ...}.
+  ciphertext           String             @db.Text
+  // Unencrypted structured metadata (provider name, scope, region, fingerprint).
+  // Never put secrets here — only what you'd be OK with the DBA reading.
+  metadata             Json?
+  // Optional natural-expiry. Cron surfaces a renewal notification.
+  expiresAt            DateTime?
+  // Rotation tracking — `rotationIntervalDays` lets the cron job nag.
+  lastRotatedAt        DateTime?
+  rotationIntervalDays Int?
+  // Free-form tags for filtering (e.g. ["prod", "aws", "billing"]).
+  tags                 String[]           @default([])
+  // When true, the reveal endpoint requires the caller to submit a short
+  // justification ("why are you opening this right now?") which is stored
+  // on the audit row. Recommended for SOCIAL_MEDIA and EMAIL_ACCOUNT.
+  requiresReason       Boolean            @default(false)
+  // Tightens the client-side auto-relock + flags the row visually as a
+  // "high-stakes" credential. Stored on the model so the policy travels
+  // with the row regardless of who is viewing it.
+  highSecurity         Boolean            @default(false)
+  folderId             String?
+  folder               CredentialFolder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  ownerId              String
+  owner                User               @relation("CredentialOwner", fields: [ownerId], references: [id])
+  accesses             CredentialAccess[]
+  auditLogs            CredentialAudit[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([ownerId])
+  @@index([folderId])
+  @@index([type])
+  @@index([expiresAt])
+}
+
+model CredentialAccess {
+  id           String               @id @default(cuid())
+  credentialId String
+  credential   Credential           @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                 @relation("CredentialAccessUser", fields: [userId], references: [id], onDelete: Cascade)
+  role         CredentialAccessRole @default(VIEWER)
+  grantedById  String
+  grantedBy    User                 @relation("CredentialAccessGranter", fields: [grantedById], references: [id])
+  grantedAt    DateTime             @default(now())
+
+  @@unique([credentialId, userId])
+  @@index([userId])
+}
+
+model CredentialAudit {
+  id           String                @id @default(cuid())
+  credentialId String
+  credential   Credential            @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                  @relation("CredentialAuditor", fields: [userId], references: [id], onDelete: Cascade)
+  action       CredentialAuditAction
+  ipAddress    String?
+  userAgent    String?
+  metadata     Json?
+  createdAt    DateTime              @default(now())
+
+  @@index([credentialId, createdAt])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Studio — marketing planner, social media planner, product ideas, team tools.
+// All four sit alongside (not inside) the project/task system because they're
+// workspace-level concerns, not project deliverables. Each entity has its own
+// lightweight checklist where applicable — we deliberately don't reuse the
+// heavy Task model since these are quick todos, not billable work.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum MarketingIdeaStage {
+  IDEA
+  PLANNED
+  IN_PROGRESS
+  REVIEW
+  LIVE
+  DONE
+  CANCELLED
+}
+
+enum MarketingIdeaPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model MarketingIdea {
+  id          String                @id @default(cuid())
+  title       String
+  description String?
+  // The actual marketing copy / draft. Markdown-ish, free-form. Lives here
+  // (not in a separate Document) because campaigns iterate quickly and the
+  // round-trip to a doc CMS just adds friction.
+  content     String?
+  stage       MarketingIdeaStage    @default(IDEA)
+  priority    MarketingIdeaPriority @default(MEDIUM)
+  // Target ship date — surfaces in the planner and on the calendar overlay.
+  targetDate  DateTime?
+  // Channel hints (blog, email, social, paid, etc.) — free-form tags so the
+  // team doesn't have to wait for us to add an enum value.
+  tags        String[]              @default([])
+  ownerId     String
+  owner       User                  @relation("MarketingIdeaOwner", fields: [ownerId], references: [id])
+  tasks       MarketingIdeaTask[]
+  socialPosts SocialPost[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([stage])
+  @@index([ownerId])
+  @@index([targetDate])
+}
+
+model MarketingIdeaTask {
+  id              String        @id @default(cuid())
+  marketingIdeaId String
+  marketingIdea   MarketingIdea @relation(fields: [marketingIdeaId], references: [id], onDelete: Cascade)
+  title           String
+  completed       Boolean       @default(false)
+  assignedToId    String?
+  assignedTo      User?         @relation("MarketingTaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  dueDate         DateTime?
+  sortOrder       Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([marketingIdeaId, sortOrder])
+}
+
+enum SocialPlatform {
+  TWITTER
+  FACEBOOK
+  INSTAGRAM
+  LINKEDIN
+  YOUTUBE
+  TIKTOK
+  THREADS
+  PINTEREST
+  REDDIT
+  WHATSAPP
+  TELEGRAM
+  OTHER
+}
+
+enum SocialPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+model SocialPost {
+  id              String           @id @default(cuid())
+  // Optional short title for the row in the planner; falls back to content
+  // excerpt when blank so the UI always has something to show.
+  title           String?
+  content         String
+  platform        SocialPlatform
+  status          SocialPostStatus @default(DRAFT)
+  // When the team intends to release the post. The planner calendar groups
+  // entries by this date.
+  scheduledAt     DateTime?
+  // When the post actually went live. Set by the team (we don't auto-post
+  // yet); keeps the timeline honest if the schedule slips.
+  publishedAt     DateTime?
+  // Media attachments — file URLs (S3/local). Stored as plain strings so
+  // anything that can be linked (image, video, PDF) fits without schema work.
+  mediaUrls       String[]         @default([])
+  // External link — once the post is live, paste the platform URL so the
+  // team can jump straight to it.
+  link            String?
+  marketingIdeaId String?
+  marketingIdea   MarketingIdea?   @relation(fields: [marketingIdeaId], references: [id], onDelete: SetNull)
+  ownerId         String
+  owner           User             @relation("SocialPostOwner", fields: [ownerId], references: [id])
+  // Internal scheduling note — what to remember when posting, the angle, etc.
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([platform])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([ownerId])
+}
+
+enum ProductIdeaStatus {
+  IDEA
+  VALIDATING
+  PLANNED
+  BUILDING
+  SHIPPED
+  REJECTED
+}
+
+model ProductIdea {
+  id            String            @id @default(cuid())
+  title         String
+  description   String?
+  // Why this matters — the problem statement / customer need. Separates
+  // "we should build X" from "here's why we should build X".
+  rationale     String?
+  // How we'd know it worked. Forces a measurable framing on each idea.
+  successMetric String?
+  status        ProductIdeaStatus @default(IDEA)
+  // Up-vote count cached on the model — incremented/decremented by the vote
+  // toggle endpoint so the board can sort by popularity without a join.
+  voteCount     Int               @default(0)
+  targetDate    DateTime?
+  tags          String[]          @default([])
+  ownerId       String
+  owner         User              @relation("ProductIdeaOwner", fields: [ownerId], references: [id])
+  tasks         ProductIdeaTask[]
+  votes         ProductIdeaVote[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status])
+  @@index([ownerId])
+  @@index([voteCount])
+}
+
+model ProductIdeaTask {
+  id            String      @id @default(cuid())
+  productIdeaId String
+  productIdea   ProductIdea @relation(fields: [productIdeaId], references: [id], onDelete: Cascade)
+  title         String
+  completed     Boolean     @default(false)
+  assignedToId  String?
+  assignedTo    User?       @relation("ProductTaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  dueDate       DateTime?
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([productIdeaId, sortOrder])
+}
+
+// One vote per user per idea — uniqueness enforced by the composite key.
+model ProductIdeaVote {
+  id            String      @id @default(cuid())
+  productIdeaId String
+  productIdea   ProductIdea @relation(fields: [productIdeaId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation("ProductIdeaVoter", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([productIdeaId, userId])
+  @@index([userId])
+}
+
+enum TeamToolCategory {
+  AI
+  DESIGN
+  DEVELOPMENT
+  MARKETING
+  PRODUCTIVITY
+  ANALYTICS
+  COMMUNICATION
+  RESEARCH
+  OTHER
+}
+
+model TeamTool {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  url         String
+  // Optional brand / favicon URL — falls back to a generated initials chip.
+  iconUrl     String?
+  category    TeamToolCategory @default(OTHER)
+  // Pinned tools appear at the top of the tools page for quick access.
+  isPinned    Boolean          @default(false)
+  // Separate flag from category so AI tools can also live under specific
+  // categories (e.g. an AI design tool is both AI=true and category=DESIGN).
+  isAi        Boolean          @default(false)
+  // Free-form tags for filtering inside the directory.
+  tags        String[]         @default([])
+  addedById   String
+  addedBy     User             @relation("TeamToolAddedBy", fields: [addedById], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([category])
+  @@index([isPinned])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-user module access overrides — sits on top of role-based defaults so an
+// admin can grant a specific employee access to a module their role wouldn't
+// normally see, or deny one their role does see. Stored sparsely: one row per
+// override, and the absence of a row means "use the role default".
+//
+// `moduleKey` matches the contracts/src/modules.ts ModuleKey union so the same
+// string powers nav filtering on both API and web. Kept as a String column
+// (not an enum) so adding a new module in code doesn't require a migration.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AccessOverride {
+  GRANT // explicitly grant the module even if the user's role wouldn't
+  DENY // explicitly hide the module even if the user's role normally would
+}
+
+model UserModuleAccess {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation("UserModuleAccessUser", fields: [userId], references: [id], onDelete: Cascade)
+  moduleKey   String
+  override    AccessOverride
+  grantedById String
+  grantedBy   User           @relation("UserModuleAccessGranter", fields: [grantedById], references: [id])
+  note        String? // optional rationale captured for the audit trail
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([userId, moduleKey])
+  @@index([userId])
+}

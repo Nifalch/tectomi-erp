@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --muted: 214 32% 95%;
+  --border: 214 32% 91%;
+  --primary: 16 87% 53%;
+  --accent: 201 95% 42%;
+  --success: 152 76% 36%;
+  --warning: 38 92% 50%;
+  --destructive: 0 84% 60%;
+
+  --module-dashboard: 217 91% 60%;
+  --module-projects: 258 90% 66%;
+  --module-tasks: 38 92% 50%;
+  --module-clients: 187 94% 43%;
+  --module-hr: 330 81% 60%;
+  --module-attendance: 168 76% 42%;
+  --module-leave: 271 91% 65%;
+  --module-time: 239 84% 67%;
+  --module-accounts: 142 71% 45%;
+  --module-invoices: 160 84% 39%;
+  --module-proposals: 199 89% 48%;
+  --module-reports: 350 89% 60%;
+  --module-settings: 25 5% 45%;
+}
+
+.dark {
+  --background: 224 45% 6%;
+  --foreground: 210 40% 98%;
+  --card: 224 40% 9%;
+  --muted: 222 30% 15%;
+  --border: 220 25% 18%;
+  --primary: 16 90% 56%;
+  --accent: 201 95% 52%;
+  --success: 152 76% 42%;
+  --warning: 38 92% 54%;
+  --destructive: 0 84% 65%;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(249, 115, 22, 0.08), transparent 32%),
+    radial-gradient(circle at 88% 92%, rgba(14, 165, 233, 0.07), transparent 28%),
+    radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.04), transparent 45%),
+    hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.011em;
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at 10% 10%, rgba(249, 115, 22, 0.12), transparent 35%),
+    radial-gradient(circle at 90% 90%, rgba(14, 165, 233, 0.10), transparent 30%),
+    radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.05), transparent 40%),
+    hsl(var(--background));
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+/* Polished global scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Glass and elevation helpers */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.card-hover {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.08), 0 8px 12px -4px rgba(0, 0, 0, 0.04);
+}
+
+.dark .card-hover:hover {
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.4), 0 8px 12px -4px rgba(0, 0, 0, 0.3);
+}
+
+code,
+pre,
+.font-mono {
+  font-family: var(--font-mono), "IBM Plex Mono", "SFMono-Regular", monospace;
+}

@@ -1,0 +1,23 @@
+{
+  "name": "tectomi-platform",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10.2.4",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @nuro7/web",
+    "dev:web": "npm run dev --workspace @nuro7/web",
+    "dev:api": "npm run start:dev --workspace @nuro7/api",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "db:generate": "npm run prisma:generate --workspace @nuro7/db",
+    "db:deploy": "npm run prisma:deploy --workspace @nuro7/db",
+    "db:migrate": "npm run prisma:migrate --workspace @nuro7/db",
+    "db:seed": "npm run prisma:seed --workspace @nuro7/db",
+    "db:team": "npm run prisma:team --workspace @nuro7/db",
+    "db:clean": "npm run prisma:clean --workspace @nuro7/db"
+  }
+}
