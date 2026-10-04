@@ -6,8 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+import { getApiBaseUrl } from "@/lib/api/client";
 
 export default function ResetPasswordPage() {
   return (
@@ -50,7 +49,7 @@ function ResetPasswordView() {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await fetch(`${baseUrl}/auth/reset-password`, {
+      const res = await fetch(`${getApiBaseUrl()}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, newPassword: password }),

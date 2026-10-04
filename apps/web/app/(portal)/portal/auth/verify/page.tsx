@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getApiBaseUrl } from "@/lib/api/client";
 
 /**
  * Fallback verify page for any old magic links that landed on the SPA
@@ -19,7 +20,7 @@ export default function VerifyPage() {
       setError("missing");
       return;
     }
-    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+    const apiBase = getApiBaseUrl();
     // Same-page navigation so the cookie set by the API on its origin is
     // available when the redirect finally lands us back on /portal.
     window.location.replace(`${apiBase}/client-portal/auth/verify?token=${encodeURIComponent(token)}`);

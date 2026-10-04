@@ -1,7 +1,7 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+import { getApiBaseUrl } from "@/lib/api/client";
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE}/client-portal${path}`, {
+  const res = await fetch(`${getApiBaseUrl()}/client-portal${path}`, {
     credentials: "include",
     headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
     // Defeat Next.js / browser fetch caching so usePortalRefresh always
@@ -57,7 +57,7 @@ export const portalApi = {
   invoices: {
     list: () => call<any[]>("/invoices"),
     detail: (id: string) => call<any>(`/invoices/${id}`),
-    pdfUrl: (id: string) => `${BASE}/client-portal/invoices/${id}/pdf`,
+    pdfUrl: (id: string) => `${getApiBaseUrl()}/client-portal/invoices/${id}/pdf`,
   },
   proposals: {
     list: () => call<any[]>("/proposals"),

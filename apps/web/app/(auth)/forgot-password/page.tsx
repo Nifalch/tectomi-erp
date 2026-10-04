@@ -5,8 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+import { getApiBaseUrl } from "@/lib/api/client";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -21,7 +20,7 @@ export default function ForgotPasswordPage() {
     try {
       // We deliberately do NOT branch on response — the API returns 200
       // whether or not the email exists, so we don't leak account presence.
-      await fetch(`${baseUrl}/auth/forgot-password`, {
+      await fetch(`${getApiBaseUrl()}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

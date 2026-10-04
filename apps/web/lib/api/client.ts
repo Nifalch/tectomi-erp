@@ -1,6 +1,21 @@
 import type { LoginResponse } from "@/lib/auth";
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+export function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl;
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host.includes("-web.onrender.com")) {
+      return `https://${host.replace("-web.onrender.com", "-api.onrender.com")}/api/v1`;
+    }
+    if (host !== "localhost" && host !== "127.0.0.1") {
+      return `${window.location.origin}/api/v1`;
+    }
+  }
+  return envUrl || "http://localhost:4000/api/v1";
+}
 
 function getAuthState() {
   if (typeof window === "undefined") return null;
@@ -53,7 +68,7 @@ async function refreshAccessToken(): Promise<string | null> {
     if (!refreshToken) return null;
 
     try {
-      const response = await fetch(`${baseUrl}/auth/refresh`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken }),
@@ -76,7 +91,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const accessToken = getAccessToken();
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -90,7 +105,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   if (response.status === 401) {
     const newToken = await refreshAccessToken();
     if (newToken) {
-      const retryResponse = await fetch(`${baseUrl}${path}`, {
+      const retryResponse = await fetch(`${getApiBaseUrl()}${path}`, {
         ...init,
         headers: {
           "Content-Type": "application/json",
@@ -147,7 +162,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
 export async function apiFetchForm<T>(path: string, body: FormData): Promise<T> {
   const accessToken = getAccessToken();
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "POST",
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     body,
@@ -156,7 +171,7 @@ export async function apiFetchForm<T>(path: string, body: FormData): Promise<T> 
   if (response.status === 401) {
     const newToken = await refreshAccessToken();
     if (newToken) {
-      const retryResponse = await fetch(`${baseUrl}${path}`, {
+      const retryResponse = await fetch(`${getApiBaseUrl()}${path}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${newToken}` },
         body,
@@ -195,7 +210,7 @@ export async function apiDelete<T>(path: string): Promise<T> {
 }
 
 export async function loginRequest(email: string, password: string) {
-  const response = await fetch(`${baseUrl}/auth/login`, {
+  const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -217,7 +232,7 @@ export async function logoutRequest(refreshToken: string) {
 
 export async function downloadWithAuth(path: string, filename: string) {
   const accessToken = getAccessToken();
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
   });
 
