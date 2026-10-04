@@ -16,7 +16,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm install && npm run db:generate && npm run db:deploy && npm run db:team && npm run build --workspace @nuro7/api
+    buildCommand: npm install --include=dev && npm run db:generate && npm run db:deploy && npm run db:team && npm run build --workspace @nuro7/api
     startCommand: npm run start --workspace @nuro7/api
     healthCheckPath: /api/v1/health
     autoDeploy: true
@@ -52,7 +52,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm install && npm run build --workspace @nuro7/web
+    buildCommand: npm install --include=dev && npm run build --workspace @nuro7/web
     startCommand: npm run start --workspace @nuro7/web
     autoDeploy: true
     envVars:

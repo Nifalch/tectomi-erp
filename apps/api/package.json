@@ -35,11 +35,12 @@
     "passport-jwt": "^4.0.1",
     "pdf-lib": "^1.17.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "@nestjs/cli": "^11.0.5",
+    "typescript": "^5.8.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
-    "@nestjs/cli": "^11.0.5",
     "@nestjs/schematics": "^11.0.1",
     "@nestjs/testing": "^11.0.0",
     "@types/cookie-parser": "^1.4.10",
@@ -53,7 +54,6 @@
     "jest": "^30.4.2",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
-    "typescript": "^5.8.2",
     "typescript-eslint": "^8.59.2"
   }
 }
