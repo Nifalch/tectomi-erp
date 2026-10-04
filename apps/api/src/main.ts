@@ -15,17 +15,30 @@ async function bootstrap() {
   // can override with a comma-separated allow-list for prod / different
   // hostnames. Browsers block fetches if the page's origin isn't in this
   // list, which manifests as "data not loading" even though the API is up.
-  const corsOrigin = process.env.CORS_ORIGIN?.split(",").map((s) => s.trim()).filter(Boolean) ?? [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-  ];
+  const configuredOrigins = process.env.CORS_ORIGIN?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: corsOrigin,
+      origin: (requestOrigin, callback) => {
+        // Allow requests with no origin (curl, server-to-server, mobile apps)
+        if (!requestOrigin) {
+          return callback(null, true);
+        }
+
+        // If wildcard is configured or origin is on onrender.com or localhost
+        if (
+          configuredOrigins.includes("*") ||
+          /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(requestOrigin) ||
+          /^https:\/\/.*\.onrender\.com$/.test(requestOrigin) ||
+          configuredOrigins.includes(requestOrigin)
+        ) {
+          return callback(null, requestOrigin);
+        }
+
+        callback(null, requestOrigin);
+      },
       credentials: true,
+      methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
     },
   });
 
